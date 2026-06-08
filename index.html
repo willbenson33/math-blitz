@@ -255,6 +255,8 @@
   .slot.locked.first { animation: lockPop .28s ease; }
   @keyframes lockPop { 0%{transform:scale(0.6); opacity:0.4} 60%{transform:scale(1.18)} 100%{transform:scale(1)} }
   .slot.wrong { animation: shake .3s ease; background: rgba(255,84,112,0.22); border-color: var(--red); color: var(--red); }
+  .slot.reveal { animation: revealPop .25s ease forwards; }
+  @keyframes revealPop { 0%{transform:scale(0.7);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
   @keyframes shake {
     0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)}
     60%{transform:translateX(-6px)} 80%{transform:translateX(6px)}
@@ -602,12 +604,14 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [keyFlash, setKeyFlash] = useState(null);  // {digit, kind}
   const [perfectStreak, setPerfectStreak] = useState(0);
   const [timeLeft, setTimeLeft] = useState(settings.timeLimit);
+  const [revealAnswer, setRevealAnswer] = useState(false);
 
   // per-round bookkeeping (refs so timers/handlers see latest)
   const retriedPos = useRef(new Set());   // positions that needed a retry
   const scoredPos = useRef(new Set());    // positions already scored (avoid double count)
   const roundPerfect = useRef(true);
   const advancing = useRef(false);
+  const revealing = useRef(false); // true during the correct-answer flash after timeout
 
   // aggregate stats across the whole run
   const stats = useRef({ firstTryDigits: 0, totalDigits: 0, perfectRounds: 0 });
@@ -621,10 +625,12 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     scoredPos.current = new Set();
     roundPerfect.current = true;
     advancing.current = false;
+    revealing.current = false;
     setLocked([]);
     setWrongFlash(null);
     setKeyFlash(null);
     setTimeLeft(settings.timeLimit);
+    setRevealAnswer(false);
   }, [settings.timeLimit]);
 
   // advance to next round (or finish)
@@ -666,10 +672,13 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   useEffect(() => {
     if (!settings.timeLimit) return;
     if (advancing.current) return;
+    if (revealing.current) return;
     if (timeLeft <= 0) {
-      // ran out: remaining digits go unanswered, end the round (not perfect)
+      // ran out: flash the correct answer briefly, then end the round
       roundPerfect.current = false;
-      finishRound(false);
+      revealing.current = true;
+      setRevealAnswer(true);
+      setTimeout(() => finishRound(false), 1200);
       return;
     }
     const id = setTimeout(() => setTimeLeft((t) => +(t - 0.1).toFixed(1)), 100);
@@ -731,6 +740,10 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       cls += " locked";
       if (!retriedPos.current.has(i)) cls += " first";
       content = locked[i];
+    } else if (revealAnswer) {
+      // timeout: show the correct digit in red for all remaining positions
+      cls += " wrong reveal";
+      content = answerStr[i];
     } else if (i === locked.length) {
       cls += " active";
       if (wrongFlash !== null) { cls += " wrong"; content = wrongFlash; }

@@ -449,7 +449,7 @@ const basePoints = (pos) => (pos + 1) * 5;
    Settings Screen
    ============================================================ */
 function SettingsScreen({ onStart }) {
-  const [range, setRange] = useState(100);
+  const [range, setRange] = useState(500);
   const [rounds, setRounds] = useState(10);
   const [timeLimit, setTimeLimit] = useState(10); // 0 = no limit, else seconds
   const [rounded, setRounded] = useState(false);

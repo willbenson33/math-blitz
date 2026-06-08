@@ -340,6 +340,15 @@
 
   .footer-note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
 
+  /* Home screen: vertically centred */
+  .home-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 24px 0;
+  }
+  .home-inner { width: 100%; }
+
   .settings-toggle {
     display: flex;
     align-items: center;
@@ -357,9 +366,20 @@
     transition: background .15s ease;
   }
   .settings-toggle:active { background: var(--panel-2); }
-  .caret { font-size: 18px; transition: transform .2s ease; }
-  .caret.open { transform: rotate(180deg); }
-  .settings-body { margin-top: 10px; }
+
+  .back-btn {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+  }
+  .back-btn:active { background: var(--panel-2); }
 </style>
 </head>
 <body>
@@ -467,65 +487,29 @@ function buildRounds(seedStr, settings) {
 const basePoints = (pos) => (pos + 1) * 5;
 
 /* ============================================================
-   Settings Screen
+   PlayControls — CTAs on home + summary (daily / custom seed+start / settings link)
    ============================================================ */
-function SettingsScreen({ onStart }) {
-  const [range, setRange] = useState(500);
-  const [rounds, setRounds] = useState(10);
-  const [timeLimit, setTimeLimit] = useState(10);
-  const [rounded, setRounded] = useState(false);
-  const [noZero, setNoZero] = useState(false);
-  const [parity, setParity] = useState("any");
-  const [seed, setSeed] = useState("");
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
-  const buildSettings = () => ({
-    range,
-    rounds: Math.max(1, Math.min(99, parseInt(rounds, 10) || 10)),
-    timeLimit,
-    rounded,
-    noZero,
-    parity,
-  });
+function PlayControls({ onStart, onOpenSettings, initialSeed = "" }) {
+  const [seed, setSeed] = useState(initialSeed);
 
   const start = (seedOverride) => {
     const finalSeed = seedOverride ?? (seed.trim() !== "" ? seed.trim() : randomSeed());
-    onStart(finalSeed, buildSettings());
+    onStart(finalSeed);
   };
-
-  const Toggle = ({ on, set, label, hint }) => (
-    <div className="toggle-row">
-      <div>
-        <div className="tlabel">{label}</div>
-        {hint && <div className="thint">{hint}</div>}
-      </div>
-      <button
-        className={"switch" + (on ? " on" : "")}
-        onClick={() => set(!on)}
-        aria-pressed={on}
-        aria-label={label}
-      />
-    </div>
-  );
 
   return (
     <div>
-      <h1 className="title">➗ Math Blitz</h1>
-      <div className="subtitle">Division speed drills — beat your best run</div>
-
-      {/* Daily Challenge */}
       <button
         className="start-btn"
-        style={{ background: "linear-gradient(180deg,#5b8cff,#3f6fe0)", boxShadow: "0 10px 24px rgba(91,140,255,0.35)", marginBottom: 12 }}
+        style={{ background: "linear-gradient(180deg,#5b8cff,#3f6fe0)", boxShadow: "0 10px 24px rgba(91,140,255,0.35)", marginBottom: 10 }}
         onClick={() => start(dailySeed())}
       >
         🗓️ Today&rsquo;s Challenge
       </button>
-      <div className="footer-note" style={{ marginTop: -4, marginBottom: 18 }}>
+      <div className="footer-note" style={{ marginTop: -2, marginBottom: 18 }}>
         Same problems for everyone today — compare scores!
       </div>
 
-      {/* Custom seed + start */}
       <div className="panel">
         <div className="field" style={{ marginBottom: 12 }}>
           <span className="label">Custom seed (optional)</span>
@@ -541,91 +525,110 @@ function SettingsScreen({ onStart }) {
         </button>
       </div>
 
-      {/* Collapsible settings */}
-      <button
-        className="settings-toggle"
-        onClick={() => setSettingsOpen((o) => !o)}
-        aria-expanded={settingsOpen}
-      >
+      <button className="settings-toggle" onClick={onOpenSettings}>
         <span>⚙️ Settings</span>
-        <span className={"caret" + (settingsOpen ? " open" : "")}>▾</span>
+        <span style={{ fontSize: 18 }}>›</span>
       </button>
+    </div>
+  );
+}
 
-      {settingsOpen && (
-        <div className="settings-body">
-          <div className="panel" style={{ marginBottom: 12 }}>
-            <div className="field">
-              <span className="label">Number range (dividend up to)</span>
-              <div className="seg">
-                {[100, 500, 1000].map((r) => (
-                  <button key={r} className={range === r ? "on" : ""} onClick={() => setRange(r)}>
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
+/* ============================================================
+   Settings Page  (full-page overlay with back button)
+   ============================================================ */
+function SettingsPage({ initialSettings = {}, onBack }) {
+  const [range, setRange] = useState(initialSettings.range ?? 500);
+  const [rounds, setRounds] = useState(initialSettings.rounds ?? 10);
+  const [timeLimit, setTimeLimit] = useState(initialSettings.timeLimit ?? 10);
+  const [rounded, setRounded] = useState(initialSettings.rounded ?? false);
+  const [noZero, setNoZero] = useState(initialSettings.noZero ?? false);
+  const [parity, setParity] = useState(initialSettings.parity ?? "any");
 
-            <div className="row2">
-              <div className="field">
-                <span className="label">Rounds</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="99"
-                  value={rounds}
-                  onChange={(e) => setRounds(e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <span className="label">Time / round</span>
-                <div className="seg">
-                  {[
-                    { v: 0, t: "∞" },
-                    { v: 5, t: "5s" },
-                    { v: 10, t: "10s" },
-                    { v: 20, t: "20s" },
-                  ].map((o) => (
-                    <button
-                      key={o.v}
-                      className={timeLimit === o.v ? "on" : ""}
-                      onClick={() => setTimeLimit(o.v)}
-                      style={{ minWidth: 0, padding: "12px 4px" }}
-                    >
-                      {o.t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+  const save = () => onBack({
+    range,
+    rounds: Math.max(1, Math.min(99, parseInt(rounds, 10) || 10)),
+    timeLimit,
+    rounded,
+    noZero,
+    parity,
+  });
+
+  const Toggle = ({ on, set, label, hint }) => (
+    <div className="toggle-row">
+      <div>
+        <div className="tlabel">{label}</div>
+        {hint && <div className="thint">{hint}</div>}
+      </div>
+      <button className={"switch" + (on ? " on" : "")} onClick={() => set(!on)} aria-pressed={on} aria-label={label} />
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <button className="back-btn" onClick={save} aria-label="Back">‹</button>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900 }}>Settings</h2>
+      </div>
+
+      <div className="panel">
+        <div className="field">
+          <span className="label">Number range (dividend up to)</span>
+          <div className="seg">
+            {[100, 500, 1000].map((r) => (
+              <button key={r} className={range === r ? "on" : ""} onClick={() => setRange(r)}>{r}</button>
+            ))}
           </div>
+        </div>
 
-          <div className="panel" style={{ marginBottom: 0 }}>
-            <span className="label">Problem rules</span>
-            <Toggle
-              on={rounded}
-              set={setRounded}
-              label="Rounded numbers only"
-              hint="Divisors are round (×10), no remainders"
-            />
-            <Toggle on={noZero} set={setNoZero} label="No zero in result" hint="Answers never contain a 0 digit" />
-
-            <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
-              <span className="label">Parity</span>
-              <div className="seg">
-                {[
-                  { v: "any", t: "Any" },
-                  { v: "odd", t: "Odds only" },
-                  { v: "even", t: "Evens only" },
-                ].map((o) => (
-                  <button key={o.v} className={parity === o.v ? "on" : ""} onClick={() => setParity(o.v)}>
-                    {o.t}
-                  </button>
-                ))}
-              </div>
+        <div className="row2">
+          <div className="field">
+            <span className="label">Rounds</span>
+            <input type="number" min="1" max="99" value={rounds} onChange={(e) => setRounds(e.target.value)} />
+          </div>
+          <div className="field">
+            <span className="label">Time / round</span>
+            <div className="seg">
+              {[{ v: 0, t: "∞" }, { v: 5, t: "5s" }, { v: 10, t: "10s" }, { v: 20, t: "20s" }].map((o) => (
+                <button key={o.v} className={timeLimit === o.v ? "on" : ""} onClick={() => setTimeLimit(o.v)} style={{ minWidth: 0, padding: "12px 4px" }}>
+                  {o.t}
+                </button>
+              ))}
             </div>
           </div>
         </div>
-      )}
+      </div>
+
+      <div className="panel">
+        <span className="label">Problem rules</span>
+        <Toggle on={rounded} set={setRounded} label="Rounded numbers only" hint="Divisors are round (×10), no remainders" />
+        <Toggle on={noZero} set={setNoZero} label="No zero in result" hint="Answers never contain a 0 digit" />
+
+        <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
+          <span className="label">Parity</span>
+          <div className="seg">
+            {[{ v: "any", t: "Any" }, { v: "odd", t: "Odds only" }, { v: "even", t: "Evens only" }].map((o) => (
+              <button key={o.v} className={parity === o.v ? "on" : ""} onClick={() => setParity(o.v)}>{o.t}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <button className="start-btn" onClick={save}>Done</button>
+    </div>
+  );
+}
+
+/* ============================================================
+   Home Screen  (vertically centred)
+   ============================================================ */
+function HomeScreen({ onStart, onOpenSettings }) {
+  return (
+    <div className="home-wrap">
+      <div className="home-inner">
+        <h1 className="title">➗ Math Blitz</h1>
+        <div className="subtitle">Division speed drills — beat your best run</div>
+        <PlayControls onStart={onStart} onOpenSettings={onOpenSettings} />
+      </div>
     </div>
   );
 }
@@ -853,7 +856,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 /* ============================================================
    Summary Screen
    ============================================================ */
-function SummaryScreen({ seed, settings, result, onReplay, onNewGame }) {
+function SummaryScreen({ seed, settings, result, onReplay, onStart, onOpenSettings }) {
   const accuracy = result.totalDigits > 0
     ? Math.round((result.firstTryDigits / result.totalDigits) * 100)
     : 0;
@@ -902,14 +905,11 @@ function SummaryScreen({ seed, settings, result, onReplay, onNewGame }) {
         </div>
       </div>
 
-      <button className="start-btn" onClick={onReplay}>↻ Replay this seed</button>
-      <button
-        className="start-btn"
-        style={{ background: "linear-gradient(180deg, var(--accent), #3f6fe0)", boxShadow: "0 10px 24px rgba(91,140,255,0.35)", marginTop: 12 }}
-        onClick={onNewGame}
-      >
-        New Game
+      <button className="start-btn" style={{ marginBottom: 20 }} onClick={onReplay}>
+        ↻ Replay this seed
       </button>
+
+      <PlayControls onStart={onStart} onOpenSettings={onOpenSettings} initialSeed="" />
     </div>
   );
 }
@@ -918,59 +918,75 @@ function SummaryScreen({ seed, settings, result, onReplay, onNewGame }) {
    App
    ============================================================ */
 function App() {
-  const [screen, setScreen] = useState("settings"); // settings | game | summary
+  // screen: "home" | "settings-page" | "game" | "summary"
+  const [screen, setScreen] = useState("home");
+  const [prevScreen, setPrevScreen] = useState("home"); // where settings was opened from
   const [seed, setSeed] = useState("");
-  const [settings, setSettings] = useState(null);
+  const [gameSettings, setGameSettings] = useState({
+    range: 500, rounds: 10, timeLimit: 10, rounded: false, noZero: false, parity: "any",
+  });
   const [rounds, setRounds] = useState([]);
   const [result, setResult] = useState(null);
-  const [gameId, setGameId] = useState(0); // bump to force a fresh GameScreen mount
+  const [gameId, setGameId] = useState(0);
 
-  const startGame = (finalSeed, finalSettings) => {
+  const startGame = (finalSeed) => {
     setSeed(finalSeed);
-    setSettings(finalSettings);
-    setRounds(buildRounds(finalSeed, finalSettings));
+    setRounds(buildRounds(finalSeed, gameSettings));
     setResult(null);
     setGameId((g) => g + 1);
     setScreen("game");
   };
 
   const finishGame = (res) => {
-    if (res === null) {
-      // quit early -> back to settings
-      setScreen("settings");
-      return;
-    }
+    if (res === null) { setScreen("home"); return; }
     setResult(res);
     setScreen("summary");
   };
 
   const replaySeed = () => {
-    setRounds(buildRounds(seed, settings));
+    setRounds(buildRounds(seed, gameSettings));
     setResult(null);
     setGameId((g) => g + 1);
     setScreen("game");
   };
 
-  if (screen === "settings") return <SettingsScreen onStart={startGame} />;
+  const openSettings = () => {
+    setPrevScreen(screen);
+    setScreen("settings-page");
+  };
+
+  const closeSettings = (newSettings) => {
+    setGameSettings(newSettings);
+    setScreen(prevScreen);
+  };
+
+  if (screen === "settings-page")
+    return <SettingsPage initialSettings={gameSettings} onBack={closeSettings} />;
+
   if (screen === "game")
     return (
       <GameScreen
-        key={gameId /* fresh game state each start/replay */}
+        key={gameId}
         seed={seed}
-        settings={settings}
+        settings={gameSettings}
         rounds={rounds}
         onFinish={finishGame}
       />
     );
-  return (
-    <SummaryScreen
-      seed={seed}
-      settings={settings}
-      result={result}
-      onReplay={replaySeed}
-      onNewGame={() => setScreen("settings")}
-    />
-  );
+
+  if (screen === "summary")
+    return (
+      <SummaryScreen
+        seed={seed}
+        settings={gameSettings}
+        result={result}
+        onReplay={replaySeed}
+        onStart={startGame}
+        onOpenSettings={openSettings}
+      />
+    );
+
+  return <HomeScreen onStart={startGame} onOpenSettings={openSettings} />;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);

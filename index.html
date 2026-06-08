@@ -436,49 +436,90 @@ function dailySeed(d = new Date()) {
 /* ============================================================
    Problem generation
    ------------------------------------------------------------
-   Answers are always whole numbers (clean division), since the
-   numpad enters the answer digit-by-digit. Filters:
-     range   : max dividend (100 / 500 / 1000)
-     rounded : divisor is a round number (multiple of 10)
-     noZero  : the answer contains no 0 digit
-     parity  : 'any' | 'odd' (dividend & divisor odd)
-                       | 'even' (dividend & divisor even)
+   Each problem is { left, opSymbol, right, answer }.
+   Supported operations: division, multiplication, addition, subtraction.
+   Filters (range, rounded, noZero, parity) apply where meaningful.
    ============================================================ */
-function generateProblem(rng, s) {
-  const maxRange = s.range;
-  const maxDivisor = Math.max(2, Math.min(Math.floor(maxRange / 2), 99));
 
-  const passes = (dividend, divisor, quotient) => {
-    if (dividend > maxRange || dividend < 1) return false;
-    if (s.rounded && divisor % 10 !== 0) return false;
-    if (s.noZero && String(quotient).indexOf("0") !== -1) return false;
-    if (s.parity === "odd" && (dividend % 2 === 0 || divisor % 2 === 0)) return false;
-    if (s.parity === "even" && (dividend % 2 !== 0 || divisor % 2 !== 0)) return false;
-    return true;
-  };
+function passesFilters(left, right, answer, s, op) {
+  if (s.noZero && String(answer).indexOf("0") !== -1) return false;
+  if (s.parity === "odd"  && (left % 2 === 0 || right % 2 === 0)) return false;
+  if (s.parity === "even" && (left % 2 !== 0 || right % 2 !== 0)) return false;
+  if (op === "division" && s.rounded && right % 10 !== 0) return false;
+  return true;
+}
 
-  for (let attempt = 0; attempt < 6000; attempt++) {
-    const divisor = randInt(rng, 2, maxDivisor);
-    const maxQ = Math.floor(maxRange / divisor);
+function generateDivision(rng, s) {
+  const max = s.range;
+  const maxDivisor = Math.max(2, Math.min(Math.floor(max / 2), 99));
+  for (let i = 0; i < 6000; i++) {
+    const right = randInt(rng, 2, maxDivisor);
+    const maxQ = Math.floor(max / right);
     if (maxQ < 2) continue;
-    const quotient = randInt(rng, 2, maxQ);
-    const dividend = divisor * quotient;
-    if (passes(dividend, divisor, quotient)) {
-      return { dividend, divisor, answer: quotient };
-    }
+    const answer = randInt(rng, 2, maxQ);
+    const left = right * answer;
+    if (left <= max && passesFilters(left, right, answer, s, "division"))
+      return { left, opSymbol: "÷", right, answer };
   }
+  const right = randInt(rng, 2, Math.min(9, maxDivisor));
+  const answer = randInt(rng, 2, Math.floor(max / right));
+  return { left: right * answer, opSymbol: "÷", right, answer };
+}
 
-  // Fallback (filters were contradictory): clean division within range.
-  const divisor = randInt(rng, 2, Math.max(2, Math.min(9, maxDivisor)));
-  const quotient = randInt(rng, 2, Math.max(2, Math.floor(maxRange / divisor)));
-  return { dividend: divisor * quotient, divisor, answer: quotient };
+function generateMultiplication(rng, s) {
+  const max = s.range;
+  const maxFactor = Math.max(2, Math.floor(Math.sqrt(max)));
+  for (let i = 0; i < 6000; i++) {
+    const left = randInt(rng, 2, maxFactor);
+    const right = randInt(rng, 2, Math.floor(max / left));
+    const answer = left * right;
+    if (answer >= 2 && answer <= max && passesFilters(left, right, answer, s, "multiplication"))
+      return { left, opSymbol: "×", right, answer };
+  }
+  return { left: 3, opSymbol: "×", right: 4, answer: 12 };
+}
+
+function generateAddition(rng, s) {
+  const max = s.range;
+  for (let i = 0; i < 6000; i++) {
+    const left = randInt(rng, 1, max - 1);
+    const right = randInt(rng, 1, max - left);
+    const answer = left + right;
+    if (answer >= 2 && answer <= max && passesFilters(left, right, answer, s, "addition"))
+      return { left, opSymbol: "+", right, answer };
+  }
+  return { left: 12, opSymbol: "+", right: 34, answer: 46 };
+}
+
+function generateSubtraction(rng, s) {
+  const max = s.range;
+  for (let i = 0; i < 6000; i++) {
+    const left = randInt(rng, 2, max);
+    const right = randInt(rng, 1, left - 1);
+    const answer = left - right;
+    if (answer >= 1 && passesFilters(left, right, answer, s, "subtraction"))
+      return { left, opSymbol: "−", right, answer };
+  }
+  return { left: 50, opSymbol: "−", right: 23, answer: 27 };
 }
 
 function buildRounds(seedStr, settings) {
   const rng = mulberry32(hashSeed(seedStr));
+  const ops = settings.operations ?? {};
+  const enabled = ["division","multiplication","addition","subtraction"].filter((k) => ops[k]);
+  if (enabled.length === 0) enabled.push("division");
+
+  const generators = {
+    division: generateDivision,
+    multiplication: generateMultiplication,
+    addition: generateAddition,
+    subtraction: generateSubtraction,
+  };
+
   const rounds = [];
   for (let i = 0; i < settings.rounds; i++) {
-    rounds.push(generateProblem(rng, settings));
+    const op = enabled[Math.floor(rng() * enabled.length)];
+    rounds.push(generators[op](rng, settings));
   }
   return rounds;
 }
@@ -537,12 +578,23 @@ function PlayControls({ onStart, onOpenSettings, initialSeed = "" }) {
    Settings Page  (full-page overlay with back button)
    ============================================================ */
 function SettingsPage({ initialSettings = {}, onBack }) {
+  const initOps = initialSettings.operations ?? { division: true, multiplication: false, addition: false, subtraction: false };
   const [range, setRange] = useState(initialSettings.range ?? 500);
   const [rounds, setRounds] = useState(initialSettings.rounds ?? 10);
   const [timeLimit, setTimeLimit] = useState(initialSettings.timeLimit ?? 10);
   const [rounded, setRounded] = useState(initialSettings.rounded ?? false);
   const [noZero, setNoZero] = useState(initialSettings.noZero ?? false);
   const [parity, setParity] = useState(initialSettings.parity ?? "any");
+  const [ops, setOps] = useState(initOps);
+
+  const toggleOp = (key) => {
+    setOps((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      // keep at least one on
+      if (!Object.values(next).some(Boolean)) return prev;
+      return next;
+    });
+  };
 
   const save = () => onBack({
     range,
@@ -551,6 +603,7 @@ function SettingsPage({ initialSettings = {}, onBack }) {
     rounded,
     noZero,
     parity,
+    operations: ops,
   });
 
   const Toggle = ({ on, set, label, hint }) => (
@@ -571,8 +624,31 @@ function SettingsPage({ initialSettings = {}, onBack }) {
       </div>
 
       <div className="panel">
+        <span className="label">Operations</span>
+        {[
+          { key: "division",       label: "Division",       symbol: "÷" },
+          { key: "multiplication", label: "Multiplication", symbol: "×" },
+          { key: "addition",       label: "Addition",       symbol: "+" },
+          { key: "subtraction",    label: "Subtraction",    symbol: "−" },
+        ].map(({ key, label, symbol }) => (
+          <div className="toggle-row" key={key}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 20, width: 28, textAlign: "center", color: "var(--accent-2)", fontWeight: 900 }}>{symbol}</span>
+              <div className="tlabel">{label}</div>
+            </div>
+            <button
+              className={"switch" + (ops[key] ? " on" : "")}
+              onClick={() => toggleOp(key)}
+              aria-pressed={ops[key]}
+              aria-label={label}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="panel">
         <div className="field">
-          <span className="label">Number range (dividend up to)</span>
+          <span className="label">Number range</span>
           <div className="seg">
             {[100, 500, 1000].map((r) => (
               <button key={r} className={range === r ? "on" : ""} onClick={() => setRange(r)}>{r}</button>
@@ -827,7 +903,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       )}
 
       <div className="problem">
-        {problem.dividend}<span className="op">÷</span>{problem.divisor}
+        {problem.left}<span className="op">{problem.opSymbol}</span>{problem.right}
       </div>
 
       <div className="slots">{slots}</div>
@@ -922,8 +998,15 @@ function App() {
   const [screen, setScreen] = useState("home");
   const [prevScreen, setPrevScreen] = useState("home"); // where settings was opened from
   const [seed, setSeed] = useState("");
-  const [gameSettings, setGameSettings] = useState({
+  const defaultSettings = {
     range: 500, rounds: 10, timeLimit: 10, rounded: false, noZero: false, parity: "any",
+    operations: { division: true, multiplication: false, addition: false, subtraction: false },
+  };
+  const [gameSettings, setGameSettings] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("math-blitz-settings"));
+      return saved ? { ...defaultSettings, ...saved, operations: { ...defaultSettings.operations, ...(saved.operations ?? {}) } } : defaultSettings;
+    } catch { return defaultSettings; }
   });
   const [rounds, setRounds] = useState([]);
   const [result, setResult] = useState(null);
@@ -957,6 +1040,7 @@ function App() {
 
   const closeSettings = (newSettings) => {
     setGameSettings(newSettings);
+    try { localStorage.setItem("math-blitz-settings", JSON.stringify(newSettings)); } catch {}
     setScreen(prevScreen);
   };
 

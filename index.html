@@ -449,7 +449,7 @@ const basePoints = (pos) => (pos + 1) * 5;
 function SettingsScreen({ onStart }) {
   const [range, setRange] = useState(100);
   const [rounds, setRounds] = useState(10);
-  const [timeLimit, setTimeLimit] = useState(0); // 0 = no limit, else seconds
+  const [timeLimit, setTimeLimit] = useState(10); // 0 = no limit, else seconds
   const [rounded, setRounded] = useState(false);
   const [noZero, setNoZero] = useState(false);
   const [parity, setParity] = useState("any"); // any | odd | even
@@ -703,6 +703,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
       if (next.length === answerStr.length) {
         finishRound(roundPerfect.current);
+      } else if (settings.timeLimit) {
+        setTimeLeft(settings.timeLimit); // reset clock on each correct digit
       }
     } else {
       // wrong digit: flash red, mark retry, then clear

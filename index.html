@@ -457,8 +457,8 @@ function SettingsScreen({ onStart }) {
   const [parity, setParity] = useState("any"); // any | odd | even
   const [seed, setSeed] = useState("");
 
-  const start = () => {
-    const finalSeed = seed.trim() !== "" ? seed.trim() : randomSeed();
+  const start = (seedOverride) => {
+    const finalSeed = seedOverride ?? (seed.trim() !== "" ? seed.trim() : randomSeed());
     const settings = {
       range,
       rounds: Math.max(1, Math.min(99, parseInt(rounds, 10) || 10)),
@@ -573,9 +573,9 @@ function SettingsScreen({ onStart }) {
           />
         </div>
         <button
-          className={"chip" + (seed === dailySeed() ? " on" : "")}
-          style={{ width: "100%", flex: "none" }}
-          onClick={() => setSeed(dailySeed())}
+          className="chip"
+          style={{ width: "100%", flex: "none", background: "linear-gradient(180deg,#5b8cff,#3f6fe0)", borderColor: "var(--accent-2)" }}
+          onClick={() => start(dailySeed())}
         >
           🗓️ Today&rsquo;s Challenge
         </button>

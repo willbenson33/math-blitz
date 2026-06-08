@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Math Blitz — Division</title>
+
+<!-- React preferred: loaded via CDN so everything stays in one file -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+  :root {
+    --bg: #0c0f17;
+    --bg-2: #141a26;
+    --panel: #1a2233;
+    --panel-2: #222c42;
+    --text: #eef2ff;
+    --muted: #8c97b3;
+    --accent: #5b8cff;
+    --accent-2: #7aa2ff;
+    --green: #28d17c;
+    --green-glow: rgba(40, 209, 124, 0.55);
+    --red: #ff5470;
+    --red-glow: rgba(255, 84, 112, 0.55);
+    --amber: #ffb347;
+    --radius: 16px;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #1b2438 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #root {
+    max-width: 540px;
+    margin: 0 auto;
+    padding: 18px 16px 40px;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3 { margin: 0; }
+
+  .title {
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    text-align: center;
+    background: linear-gradient(90deg, var(--accent-2), #c6b3ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--muted);
+    margin-top: 6px;
+    margin-bottom: 22px;
+    font-size: 14px;
+  }
+
+  /* ---------- Settings ---------- */
+  .panel {
+    background: linear-gradient(180deg, var(--panel), var(--bg-2));
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .seg {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .seg button, .chip {
+    flex: 1 1 0;
+    min-width: 64px;
+    padding: 12px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--panel-2);
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .08s ease, background .15s ease, border-color .15s ease;
+  }
+  .seg button:active, .chip:active { transform: scale(0.96); }
+  .seg button.on, .chip.on {
+    background: linear-gradient(180deg, var(--accent), #3f6fe0);
+    border-color: var(--accent-2);
+    box-shadow: 0 6px 16px rgba(91,140,255,0.35);
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--panel-2);
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 10px;
+  }
+  .toggle-row:last-child { margin-bottom: 0; }
+  .toggle-row .tlabel { font-weight: 700; font-size: 15px; }
+  .toggle-row .thint { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .switch {
+    position: relative;
+    width: 52px; height: 30px;
+    border-radius: 999px;
+    background: #38415a;
+    border: none;
+    cursor: pointer;
+    transition: background .18s ease;
+    flex: 0 0 auto;
+  }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform .18s ease;
+  }
+  .switch.on { background: var(--green); }
+  .switch.on::after { transform: translateX(22px); }
+
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 13px 14px;
+    border-radius: 12px;
+    background: var(--panel-2);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 600;
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  input:focus { border-color: var(--accent); }
+
+  .row2 { display: flex; gap: 12px; }
+  .row2 > .field { flex: 1; margin-bottom: 0; }
+
+  .start-btn {
+    width: 100%;
+    padding: 18px;
+    border: none;
+    border-radius: 16px;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    color: #fff;
+    cursor: pointer;
+    background: linear-gradient(180deg, #34d27e, #18a661);
+    box-shadow: 0 10px 24px rgba(40,209,124,0.35);
+    transition: transform .08s ease, filter .15s ease;
+    margin-top: 6px;
+  }
+  .start-btn:active { transform: scale(0.98); filter: brightness(1.05); }
+
+  /* ---------- Game ---------- */
+  .gtop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .stat { text-align: center; }
+  .stat .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .stat .v { font-size: 22px; font-weight: 900; }
+  .score-pop { animation: pop .25s ease; }
+  @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(1.35); color:var(--green)} 100%{transform:scale(1)} }
+
+  .fire-bar {
+    text-align: center;
+    font-size: 28px;
+    min-height: 38px;
+    letter-spacing: 2px;
+    margin: 2px 0 8px;
+  }
+  .fire-bar span { display: inline-block; animation: flicker 1.1s infinite alternate; }
+  @keyframes flicker { from { transform: translateY(0) scale(1); filter: drop-shadow(0 0 4px #ff8c2e); } to { transform: translateY(-3px) scale(1.12); filter: drop-shadow(0 0 10px #ff5e2e); } }
+
+  .timer-track {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    overflow: hidden;
+    margin-bottom: 18px;
+  }
+  .timer-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--amber));
+    border-radius: 999px;
+    transition: width .12s linear;
+  }
+  .timer-fill.low { background: linear-gradient(90deg, var(--amber), var(--red)); }
+
+  .problem {
+    text-align: center;
+    font-size: clamp(46px, 14vw, 76px);
+    font-weight: 900;
+    letter-spacing: 1px;
+    margin: 18px 0 6px;
+    text-shadow: 0 4px 24px rgba(91,140,255,0.25);
+  }
+  .problem .op { color: var(--accent-2); margin: 0 8px; }
+
+  .slots {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 14px 0 26px;
+    min-height: 76px;
+  }
+  .slot {
+    width: 56px; height: 72px;
+    border-radius: 14px;
+    background: var(--panel);
+    border: 2px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px; font-weight: 900;
+    transition: border-color .12s ease, background .12s ease;
+  }
+  .slot.active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,140,255,0.25); }
+  .slot.locked { background: rgba(40,209,124,0.16); border-color: var(--green); color: var(--green); }
+  .slot.locked.first { animation: lockPop .28s ease; }
+  @keyframes lockPop { 0%{transform:scale(0.6); opacity:0.4} 60%{transform:scale(1.18)} 100%{transform:scale(1)} }
+  .slot.wrong { animation: shake .3s ease; background: rgba(255,84,112,0.22); border-color: var(--red); color: var(--red); }
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)}
+    60%{transform:translateX(-6px)} 80%{transform:translateX(6px)}
+  }
+
+  .numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .key {
+    padding: 22px 0;
+    font-size: 30px;
+    font-weight: 900;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(180deg, var(--panel-2), #1a2236);
+    color: var(--text);
+    cursor: pointer;
+    box-shadow: 0 6px 0 #0c1120, var(--shadow);
+    transition: transform .06s ease, box-shadow .06s ease, background .1s ease;
+    user-select: none;
+  }
+  .key:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #0c1120, var(--shadow);
+    background: linear-gradient(180deg, #2a3550, #202940);
+  }
+  .key.flash-green { background: linear-gradient(180deg, var(--green), #18a661); border-color: var(--green); }
+  .key.flash-red { background: linear-gradient(180deg, var(--red), #d6324f); border-color: var(--red); }
+  .key.wide { font-size: 22px; }
+  .key.action { color: var(--amber); }
+
+  /* ---------- Summary ---------- */
+  .big-score {
+    text-align: center;
+    font-size: 64px;
+    font-weight: 900;
+    margin: 8px 0 0;
+    background: linear-gradient(90deg, var(--green), var(--amber));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+  .scard {
+    background: var(--panel-2);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+  }
+  .scard .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .scard .v { font-size: 26px; font-weight: 900; margin-top: 4px; }
+
+  .seed-line {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--panel-2);
+    border: 1px dashed rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-top: 14px;
+    font-size: 14px;
+  }
+  .seed-line .code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-weight: 800;
+    color: var(--accent-2);
+    flex: 1;
+    word-break: break-all;
+  }
+  .mini-btn {
+    border: 1px solid rgba(255,255,255,0.12);
+    background: var(--panel);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .mini-btn:active { transform: scale(0.96); }
+
+  .footer-note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ============================================================
+   Seeded RNG  (deterministic from a string/number seed)
+   ============================================================ */
+
+// xfnv1a string hash -> 32-bit seed
+function hashSeed(str) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+// mulberry32 PRNG
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randInt(rng, min, max) {
+  return Math.floor(rng() * (max - min + 1)) + min;
+}
+
+function randomSeed() {
+  // short, shareable, human-friendly
+  const chars = "ACDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "";
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+// Today's challenge: a stable seed for the current calendar day, so everyone
+// who plays today gets the exact same sequence of problems.
+function dailySeed(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return "DAILY-" + y + m + day;
+}
+
+/* ============================================================
+   Problem generation
+   ------------------------------------------------------------
+   Answers are always whole numbers (clean division), since the
+   numpad enters the answer digit-by-digit. Filters:
+     range   : max dividend (100 / 500 / 1000)
+     rounded : divisor is a round number (multiple of 10)
+     noZero  : the answer contains no 0 digit
+     parity  : 'any' | 'odd' (dividend & divisor odd)
+                       | 'even' (dividend & divisor even)
+   ============================================================ */
+function generateProblem(rng, s) {
+  const maxRange = s.range;
+  const maxDivisor = Math.max(2, Math.min(Math.floor(maxRange / 2), 99));
+
+  const passes = (dividend, divisor, quotient) => {
+    if (dividend > maxRange || dividend < 1) return false;
+    if (s.rounded && divisor % 10 !== 0) return false;
+    if (s.noZero && String(quotient).indexOf("0") !== -1) return false;
+    if (s.parity === "odd" && (dividend % 2 === 0 || divisor % 2 === 0)) return false;
+    if (s.parity === "even" && (dividend % 2 !== 0 || divisor % 2 !== 0)) return false;
+    return true;
+  };
+
+  for (let attempt = 0; attempt < 6000; attempt++) {
+    const divisor = randInt(rng, 2, maxDivisor);
+    const maxQ = Math.floor(maxRange / divisor);
+    if (maxQ < 2) continue;
+    const quotient = randInt(rng, 2, maxQ);
+    const dividend = divisor * quotient;
+    if (passes(dividend, divisor, quotient)) {
+      return { dividend, divisor, answer: quotient };
+    }
+  }
+
+  // Fallback (filters were contradictory): clean division within range.
+  const divisor = randInt(rng, 2, Math.max(2, Math.min(9, maxDivisor)));
+  const quotient = randInt(rng, 2, Math.max(2, Math.floor(maxRange / divisor)));
+  return { dividend: divisor * quotient, divisor, answer: quotient };
+}
+
+function buildRounds(seedStr, settings) {
+  const rng = mulberry32(hashSeed(seedStr));
+  const rounds = [];
+  for (let i = 0; i < settings.rounds; i++) {
+    rounds.push(generateProblem(rng, settings));
+  }
+  return rounds;
+}
+
+/* points a digit position is worth on a clean first try */
+const basePoints = (pos) => (pos + 1) * 5;
+
+/* ============================================================
+   Settings Screen
+   ============================================================ */
+function SettingsScreen({ onStart }) {
+  const [range, setRange] = useState(100);
+  const [rounds, setRounds] = useState(10);
+  const [timeLimit, setTimeLimit] = useState(0); // 0 = no limit, else seconds
+  const [rounded, setRounded] = useState(false);
+  const [noZero, setNoZero] = useState(false);
+  const [parity, setParity] = useState("any"); // any | odd | even
+  const [seed, setSeed] = useState("");
+
+  const start = () => {
+    const finalSeed = seed.trim() !== "" ? seed.trim() : randomSeed();
+    const settings = {
+      range,
+      rounds: Math.max(1, Math.min(99, parseInt(rounds, 10) || 10)),
+      timeLimit,
+      rounded,
+      noZero,
+      parity,
+    };
+    onStart(finalSeed, settings);
+  };
+
+  const Toggle = ({ on, set, label, hint }) => (
+    <div className="toggle-row">
+      <div>
+        <div className="tlabel">{label}</div>
+        {hint && <div className="thint">{hint}</div>}
+      </div>
+      <button
+        className={"switch" + (on ? " on" : "")}
+        onClick={() => set(!on)}
+        aria-pressed={on}
+        aria-label={label}
+      />
+    </div>
+  );
+
+  return (
+    <div>
+      <h1 className="title">➗ Math Blitz</h1>
+      <div className="subtitle">Division speed drills — beat your best run</div>
+
+      <div className="panel">
+        <div className="field">
+          <span className="label">Number range (dividend up to)</span>
+          <div className="seg">
+            {[100, 500, 1000].map((r) => (
+              <button key={r} className={range === r ? "on" : ""} onClick={() => setRange(r)}>
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="row2">
+          <div className="field">
+            <span className="label">Rounds</span>
+            <input
+              type="number"
+              min="1"
+              max="99"
+              value={rounds}
+              onChange={(e) => setRounds(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <span className="label">Time / round</span>
+            <div className="seg">
+              {[
+                { v: 0, t: "∞" },
+                { v: 5, t: "5s" },
+                { v: 10, t: "10s" },
+                { v: 20, t: "20s" },
+              ].map((o) => (
+                <button
+                  key={o.v}
+                  className={timeLimit === o.v ? "on" : ""}
+                  onClick={() => setTimeLimit(o.v)}
+                  style={{ minWidth: 0, padding: "12px 4px" }}
+                >
+                  {o.t}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="panel">
+        <span className="label">Problem rules</span>
+        <Toggle
+          on={rounded}
+          set={setRounded}
+          label="Rounded numbers only"
+          hint="Divisors are round (×10), no remainders"
+        />
+        <Toggle on={noZero} set={setNoZero} label="No zero in result" hint="Answers never contain a 0 digit" />
+
+        <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
+          <span className="label">Parity</span>
+          <div className="seg">
+            {[
+              { v: "any", t: "Any" },
+              { v: "odd", t: "Odds only" },
+              { v: "even", t: "Evens only" },
+            ].map((o) => (
+              <button key={o.v} className={parity === o.v ? "on" : ""} onClick={() => setParity(o.v)}>
+                {o.t}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="field" style={{ marginBottom: 12 }}>
+          <span className="label">Seed (optional — leave blank for random)</span>
+          <input
+            type="text"
+            placeholder="e.g. ABC123"
+            value={seed}
+            onChange={(e) => setSeed(e.target.value)}
+          />
+        </div>
+        <button
+          className={"chip" + (seed === dailySeed() ? " on" : "")}
+          style={{ width: "100%", flex: "none" }}
+          onClick={() => setSeed(dailySeed())}
+        >
+          🗓️ Today&rsquo;s Challenge
+        </button>
+        <div className="thint" style={{ marginTop: 8, textAlign: "center" }}>
+          Same problems for everyone today — compare scores!
+        </div>
+      </div>
+
+      <button className="start-btn" onClick={start}>
+        Start Blitz →
+      </button>
+      <div className="footer-note">Same seed + same settings = same problems, every time.</div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Game Screen
+   ============================================================ */
+function GameScreen({ seed, settings, rounds, onFinish }) {
+  const [roundIdx, setRoundIdx] = useState(0);
+  const [locked, setLocked] = useState([]);        // correctly-entered digits so far
+  const [score, setScore] = useState(0);
+  const [scorePop, setScorePop] = useState(false);
+  const [wrongFlash, setWrongFlash] = useState(null); // the wrong digit being flashed
+  const [keyFlash, setKeyFlash] = useState(null);  // {digit, kind}
+  const [perfectStreak, setPerfectStreak] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(settings.timeLimit);
+
+  // per-round bookkeeping (refs so timers/handlers see latest)
+  const retriedPos = useRef(new Set());   // positions that needed a retry
+  const scoredPos = useRef(new Set());    // positions already scored (avoid double count)
+  const roundPerfect = useRef(true);
+  const advancing = useRef(false);
+
+  // aggregate stats across the whole run
+  const stats = useRef({ firstTryDigits: 0, totalDigits: 0, perfectRounds: 0 });
+
+  const problem = rounds[roundIdx];
+  const answerStr = String(problem.answer);
+  const pos = locked.length;
+
+  const resetRoundState = useCallback(() => {
+    retriedPos.current = new Set();
+    scoredPos.current = new Set();
+    roundPerfect.current = true;
+    advancing.current = false;
+    setLocked([]);
+    setWrongFlash(null);
+    setKeyFlash(null);
+    setTimeLeft(settings.timeLimit);
+  }, [settings.timeLimit]);
+
+  // advance to next round (or finish)
+  const finishRound = useCallback(
+    (wasPerfect) => {
+      if (advancing.current) return;
+      advancing.current = true;
+
+      stats.current.totalDigits += answerStr.length;
+      if (wasPerfect) {
+        stats.current.perfectRounds += 1;
+        setPerfectStreak((s) => s + 1);
+      } else {
+        setPerfectStreak(0);
+      }
+
+      setTimeout(() => {
+        if (roundIdx + 1 >= rounds.length) {
+          onFinish({
+            score: scoreRef.current,
+            firstTryDigits: stats.current.firstTryDigits,
+            totalDigits: stats.current.totalDigits,
+            perfectRounds: stats.current.perfectRounds,
+          });
+        } else {
+          setRoundIdx((i) => i + 1);
+          resetRoundState();
+        }
+      }, 480);
+    },
+    [answerStr.length, roundIdx, rounds.length, onFinish, resetRoundState]
+  );
+
+  // keep a ref of score for the finish callback
+  const scoreRef = useRef(0);
+  useEffect(() => { scoreRef.current = score; }, [score]);
+
+  // timer
+  useEffect(() => {
+    if (!settings.timeLimit) return;
+    if (advancing.current) return;
+    if (timeLeft <= 0) {
+      // ran out: remaining digits go unanswered, end the round (not perfect)
+      roundPerfect.current = false;
+      finishRound(false);
+      return;
+    }
+    const id = setTimeout(() => setTimeLeft((t) => +(t - 0.1).toFixed(1)), 100);
+    return () => clearTimeout(id);
+  }, [timeLeft, settings.timeLimit, finishRound]);
+
+  const flashKey = (digit, kind) => {
+    setKeyFlash({ digit, kind });
+    setTimeout(() => setKeyFlash(null), 220);
+  };
+
+  const handleDigit = (d) => {
+    if (advancing.current) return;
+    const expected = answerStr[pos];
+
+    if (String(d) === expected) {
+      // correct digit
+      const firstTry = !retriedPos.current.has(pos);
+      if (!scoredPos.current.has(pos)) {
+        scoredPos.current.add(pos);
+        const worth = firstTry ? basePoints(pos) : Math.round(basePoints(pos) / 5);
+        setScore((s) => s + worth);
+        setScorePop(true);
+        setTimeout(() => setScorePop(false), 250);
+        if (firstTry) stats.current.firstTryDigits += 1;
+        else roundPerfect.current = false;
+      }
+      flashKey(d, "green");
+      const next = [...locked, d];
+      setLocked(next);
+
+      if (next.length === answerStr.length) {
+        finishRound(roundPerfect.current);
+      }
+    } else {
+      // wrong digit: flash red, mark retry, then clear
+      retriedPos.current.add(pos);
+      roundPerfect.current = false;
+      flashKey(d, "red");
+      setWrongFlash(d);
+      setTimeout(() => setWrongFlash(null), 300);
+    }
+  };
+
+  const handleBackspace = () => {
+    if (advancing.current) return;
+    if (wrongFlash !== null) { setWrongFlash(null); return; }
+    if (locked.length > 0) setLocked(locked.slice(0, -1));
+  };
+
+  // render answer slots
+  const slots = [];
+  for (let i = 0; i < answerStr.length; i++) {
+    let cls = "slot";
+    let content = "";
+    if (i < locked.length) {
+      cls += " locked";
+      if (!retriedPos.current.has(i)) cls += " first";
+      content = locked[i];
+    } else if (i === locked.length) {
+      cls += " active";
+      if (wrongFlash !== null) { cls += " wrong"; content = wrongFlash; }
+    }
+    slots.push(<div key={i} className={cls}>{content}</div>);
+  }
+
+  const timePct = settings.timeLimit ? Math.max(0, (timeLeft / settings.timeLimit) * 100) : 100;
+  const low = settings.timeLimit && timeLeft <= settings.timeLimit * 0.34;
+
+  const keys = ["1","2","3","4","5","6","7","8","9"];
+
+  return (
+    <div>
+      <div className="gtop">
+        <div className="stat">
+          <div className="k">Round</div>
+          <div className="v">{roundIdx + 1}/{rounds.length}</div>
+        </div>
+        <div className="stat">
+          <div className="k">Score</div>
+          <div className={"v" + (scorePop ? " score-pop" : "")}>{score}</div>
+        </div>
+        <div className="stat">
+          <div className="k">Seed</div>
+          <div className="v" style={{ fontSize: 16, color: "var(--accent-2)" }}>{seed}</div>
+        </div>
+      </div>
+
+      <div className="fire-bar">
+        {Array.from({ length: perfectStreak }).map((_, i) => (
+          <span key={i} style={{ animationDelay: (i * 0.08) + "s" }}>🔥</span>
+        ))}
+      </div>
+
+      {settings.timeLimit > 0 && (
+        <div className="timer-track">
+          <div className={"timer-fill" + (low ? " low" : "")} style={{ width: timePct + "%" }} />
+        </div>
+      )}
+
+      <div className="problem">
+        {problem.dividend}<span className="op">÷</span>{problem.divisor}
+      </div>
+
+      <div className="slots">{slots}</div>
+
+      <div className="numpad">
+        {keys.map((k) => {
+          let cls = "key";
+          if (keyFlash && keyFlash.digit === k) cls += keyFlash.kind === "green" ? " flash-green" : " flash-red";
+          return (
+            <button key={k} className={cls} onClick={() => handleDigit(k)}>{k}</button>
+          );
+        })}
+        <button className="key wide action" onClick={handleBackspace}>⌫</button>
+        <button
+          className={"key" + (keyFlash && keyFlash.digit === "0" ? (keyFlash.kind === "green" ? " flash-green" : " flash-red") : "")}
+          onClick={() => handleDigit("0")}
+        >
+          0
+        </button>
+        <button className="key wide action" onClick={() => onFinish(null)}>Quit</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Summary Screen
+   ============================================================ */
+function SummaryScreen({ seed, settings, result, onReplay, onNewGame }) {
+  const accuracy = result.totalDigits > 0
+    ? Math.round((result.firstTryDigits / result.totalDigits) * 100)
+    : 0;
+
+  const copySeed = () => {
+    try { navigator.clipboard.writeText(seed); } catch (e) {}
+  };
+
+  return (
+    <div>
+      <h1 className="title">Run Complete</h1>
+      <div className="subtitle">
+        {result.perfectRounds === settings.rounds
+          ? "🔥 Flawless! Every round perfect. 🔥"
+          : "Nice work — try to beat it."}
+      </div>
+
+      <div className="panel">
+        <div className="scard" style={{ background: "transparent", border: "none", padding: 0 }}>
+          <div className="k">Total Score</div>
+          <div className="big-score">{result.score}</div>
+        </div>
+        <div className="grid2">
+          <div className="scard">
+            <div className="k">Rounds</div>
+            <div className="v">{settings.rounds}</div>
+          </div>
+          <div className="scard">
+            <div className="k">Accuracy</div>
+            <div className="v">{accuracy}%</div>
+          </div>
+          <div className="scard">
+            <div className="k">Perfect Rounds</div>
+            <div className="v">{result.perfectRounds} 🔥</div>
+          </div>
+          <div className="scard">
+            <div className="k">Digits Nailed</div>
+            <div className="v">{result.firstTryDigits}/{result.totalDigits}</div>
+          </div>
+        </div>
+
+        <div className="seed-line">
+          <span style={{ color: "var(--muted)" }}>Seed</span>
+          <span className="code">{seed}</span>
+          <button className="mini-btn" onClick={copySeed}>Copy</button>
+        </div>
+      </div>
+
+      <button className="start-btn" onClick={onReplay}>↻ Replay this seed</button>
+      <button
+        className="start-btn"
+        style={{ background: "linear-gradient(180deg, var(--accent), #3f6fe0)", boxShadow: "0 10px 24px rgba(91,140,255,0.35)", marginTop: 12 }}
+        onClick={onNewGame}
+      >
+        New Game
+      </button>
+    </div>
+  );
+}
+
+/* ============================================================
+   App
+   ============================================================ */
+function App() {
+  const [screen, setScreen] = useState("settings"); // settings | game | summary
+  const [seed, setSeed] = useState("");
+  const [settings, setSettings] = useState(null);
+  const [rounds, setRounds] = useState([]);
+  const [result, setResult] = useState(null);
+  const [gameId, setGameId] = useState(0); // bump to force a fresh GameScreen mount
+
+  const startGame = (finalSeed, finalSettings) => {
+    setSeed(finalSeed);
+    setSettings(finalSettings);
+    setRounds(buildRounds(finalSeed, finalSettings));
+    setResult(null);
+    setGameId((g) => g + 1);
+    setScreen("game");
+  };
+
+  const finishGame = (res) => {
+    if (res === null) {
+      // quit early -> back to settings
+      setScreen("settings");
+      return;
+    }
+    setResult(res);
+    setScreen("summary");
+  };
+
+  const replaySeed = () => {
+    setRounds(buildRounds(seed, settings));
+    setResult(null);
+    setGameId((g) => g + 1);
+    setScreen("game");
+  };
+
+  if (screen === "settings") return <SettingsScreen onStart={startGame} />;
+  if (screen === "game")
+    return (
+      <GameScreen
+        key={gameId /* fresh game state each start/replay */}
+        seed={seed}
+        settings={settings}
+        rounds={rounds}
+        onFinish={finishGame}
+      />
+    );
+  return (
+    <SummaryScreen
+      seed={seed}
+      settings={settings}
+      result={result}
+      onReplay={replaySeed}
+      onNewGame={() => setScreen("settings")}
+    />
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

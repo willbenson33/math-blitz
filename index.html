@@ -541,78 +541,423 @@ const basePoints = (pos) => (pos + 1) * 5;
 
 /* ============================================================
    Mental-math tips  (Teach Me Mode)
-   Returns a short contextual tip for the given problem.
+   Returns a contextual tip for the given problem.
+   Multiple variants per pattern — chosen by problem hash for variety.
    ============================================================ */
 function getTip({ left, right, answer, opSymbol }) {
-  if (opSymbol === "÷") {
-    if (right === 2)  return `Halving trick: ${left} ÷ 2 — just split it in two. ${left/2}+${left/2}=${left}, so the answer is ${answer}.`;
-    if (right === 4)  return `÷4 = halve twice: ${left} → ${left/2} → ${answer}. Double-halving is faster than long division.`;
-    if (right === 8)  return `÷8 = halve three times: ${left} → ${left/2} → ${left/4} → ${answer}.`;
-    if (right === 5)  return `÷5 shortcut: double it, then ÷10. ${left}×2=${left*2}, shift the decimal → ${answer}.`;
-    if (right === 10) return `÷10: just drop the last zero (or shift decimal). ${left} → ${answer}.`;
-    if (right === 20) return `÷20 = ÷2 then ÷10: ${left}÷2=${left/2}, ÷10 = ${answer}.`;
-    if (right === 25) return `÷25 shortcut: multiply by 4, then ÷100. ${left}×4=${left*4}, ÷100 = ${answer}.`;
-    if (right === 50) return `÷50 shortcut: ×2 then ÷100. ${left}×2=${left*2}, ÷100 = ${answer}.`;
-    if (right === 9)  return `Think multiplication: 9×${answer}=${left}. Knowing times tables turns division instant.`;
-    if (right === 3)  return `÷3 check: digits of ${left} add up to ${String(left).split("").reduce((s,d)=>s+Number(d),0)}, which is divisible by 3. Answer: ${answer}.`;
-    if (right % 10 === 0) {
-      const base = right / 10;
-      return `${right} is ${base}×10: divide by ${base} first (=${left/base}), then ÷10 = ${answer}.`;
-    }
-    return `Flip to multiplication: ${right}×${answer}=${left}. Asking "${right}×? =${left}" is often faster than dividing.`;
-  }
+  // deterministic pick from an array using the problem numbers as a seed
+  const pick = (arr) => arr[(left * 31 + right * 17 + answer * 7) % arr.length];
 
-  if (opSymbol === "×") {
-    const a = left, b = right;
-    if (b === 2 || a === 2) { const x=a===2?b:a; return `×2 = doubling: ${x}+${x}=${answer}. Fast doubling is a core mental math skill.`; }
-    if (b === 4 || a === 4) { const x=a===4?b:a; return `×4 = double twice: ${x}×2=${x*2}, ×2 again = ${answer}.`; }
-    if (b === 8 || a === 8) { const x=a===8?b:a; return `×8 = double three times: ${x}→${x*2}→${x*4}→${answer}.`; }
-    if (b === 5 || a === 5) { const x=a===5?b:a; return `×5 shortcut: ×10 then halve. ${x}×10=${x*10}, ÷2 = ${answer}.`; }
-    if (b === 9 || a === 9) { const x=a===9?b:a; return `×9 trick: ×10 then subtract. ${x}×10=${x*10}, −${x} = ${answer}.`; }
-    if (b === 11|| a === 11){ const x=a===11?b:a; return x<10 ? `×11 for single digits: repeat it — ${x}${x} = ${answer}.` : `×11 two-digit trick: write the outer digits, put their sum in the middle. ${a}×${b}=${answer}.`; }
-    if (b === 25|| a === 25){ const x=a===25?b:a; return `×25 = ÷4 then ×100: ${x}÷4=${x/4}, ×100 = ${answer}.`; }
-    if (b === 12|| a === 12){ const x=a===12?b:a; return `×12 = ×10 + ×2: ${x}×10=${x*10}, +${x*2} = ${answer}.`; }
-    // near multiple of 10
-    const nearB = Math.round(b/10)*10, diffB = b-nearB;
-    if (Math.abs(diffB)===1) return `${b} is close to ${nearB}: ${a}×${nearB}=${a*nearB}, then ${diffB>0?`+${a}`:`−${a}`} = ${answer}.`;
-    // decompose larger into tens+units
-    const bTens=Math.floor(b/10)*10, bUnits=b%10;
-    if (bTens>0 && bUnits>0) return `Break ${b} apart: ${a}×${bTens}=${a*bTens}, ${a}×${bUnits}=${a*bUnits}, add → ${answer}.`;
-    return `Break one number into parts you know, multiply each piece, then add. Builds to instant recall.`;
-  }
-
-  if (opSymbol === "+") {
-    // make-10 trick
-    const leftUnits = left % 10;
-    if (leftUnits !== 0) {
-      const comp = 10 - leftUnits;
-      if (right >= comp) {
-        const rounded = left + comp, remainder = right - comp;
-        return `"Make a 10" trick: borrow ${comp} from ${right} → ${left}+${comp}=${rounded}. Then add remaining ${remainder}: ${answer}.`;
+  const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+  const trailingZeros = (x) => { let c=0; while(x%10===0){c++;x=x/10;} return c; };
+  // chunk: find the largest easy multiple of d that fits in n (e.g. 100×d, 10×d, 5×d)
+  const chunkTip = (dividend, divisor, quot) => {
+    for (const mult of [100,50,25,20,10,5,2]) {
+      const chunk = mult * divisor;
+      if (chunk < dividend && dividend - chunk > 0 && (dividend - chunk) % divisor === 0) {
+        const rem = dividend - chunk, remQ = rem / divisor;
+        return `Chunking: ${mult}×${divisor}=${chunk} fits inside ${dividend}. Remainder ${rem}÷${divisor}=${remQ}. Total: ${mult}+${remQ}=${quot}.`;
       }
     }
-    // round-adjust
-    const nearRight = Math.round(right/10)*10, diff = right-nearRight;
-    if (diff !== 0) return `Round ${right} to ${nearRight}: ${left}+${nearRight}=${left+nearRight}, then ${diff>0?`+${diff}`:`${diff}`} = ${answer}.`;
-    // left-to-right
-    const lTens=Math.floor(left/10)*10, rTens=Math.floor(right/10)*10;
-    return `Add left-to-right: tens first (${lTens}+${rTens}=${lTens+rTens}), then units (${left%10}+${right%10}=${left%10+right%10}). Combine: ${answer}.`;
+    return null;
+  };
+
+  // ─── DIVISION ─────────────────────────────────────────────
+  if (opSymbol === "÷") {
+    const digitSum = (x) => String(x).split("").reduce((s, d) => s + +d, 0);
+
+    // Cancel trailing zeros first if both share them
+    const tzL = trailingZeros(left), tzR = trailingZeros(right);
+    if (tzL > 0 && tzR > 0) {
+      const cancel = Math.min(tzL, tzR);
+      const sl = left / (10**cancel), sr = right / (10**cancel);
+      return pick([
+        `Cancel ${cancel} trailing zero${cancel>1?"s":""}: ${left}÷${right} = ${sl}÷${sr} = ${answer}. Always simplify before dividing.`,
+        `Both end in ${cancel>1?`${cancel} zeros`:"a zero"}: cross them off. ${sl}÷${sr}=${answer}.`,
+      ]);
+    }
+
+    // Simplify by GCD > 1 when divisor isn't already a small prime
+    const g = gcd(left, right);
+    if (g > 1 && right > 12 && g !== right) {
+      const sl = left/g, sr = right/g;
+      return pick([
+        `GCD shortcut: ${left} and ${right} share factor ${g}. Divide both: ${sl}÷${sr}=${answer}.`,
+        `Simplify first: both divisible by ${g}. ${left}÷${g}=${sl}, ${right}÷${g}=${sr}. Now ${sl}÷${sr}=${answer}.`,
+        `Cancel the common factor (${g}): ${left}÷${right} = ${sl}÷${sr} = ${answer}.`,
+      ]);
+    }
+
+    // Halve both if both are even
+    if (left % 2 === 0 && right % 2 === 0 && right > 4) {
+      const hl = left/2, hr = right/2;
+      return pick([
+        `Both even — halve both sides: ${left}÷${right} = ${hl}÷${hr} = ${answer}. Smaller numbers are easier.`,
+        `Halve dividend and divisor together: ${hl}÷${hr}=${answer}. The ratio stays the same.`,
+      ]);
+    }
+
+    if (right === 2) return pick([
+      `Halving: split ${left} into two equal parts. ${left/2} + ${left/2} = ${left} ✓`,
+      `÷2 = half. Is ${left} even? Yes — straight halve: ${answer}.`,
+      `Think of it as sharing ${left} equally between 2 people: ${answer} each.`,
+      `÷2 shortcut: if the number ends in an even digit, halve the last two digits. ${left} → ${answer}.`,
+    ]);
+
+    if (right === 3) return pick([
+      `÷3 rule: digit sum of ${left} = ${digitSum(left)}, divisible by 3. Answer: ${answer}.`,
+      `Think multiplication: 3 × ${answer} = ${left}. Build your 3× table to speed this up.`,
+      `Chunking: how many 3s fit in ${Math.floor(left/10)*10}? ${Math.floor(left/10)*10/3|0} × 3 = ${(Math.floor(left/10)*10/3|0)*3}. Then handle the remainder.`,
+      `÷3: keep subtracting 3 mentally in groups of 10, 20, 30… How many groups of 3 make ${left}? ${answer}.`,
+    ]);
+
+    if (right === 4) return pick([
+      `÷4 = halve twice: ${left} → ${left/2} → ${answer}.`,
+      `Think quarters: ${left} ÷ 4 is one quarter of ${left}. Half is ${left/2}, half again = ${answer}.`,
+      `Halve it: ${left/2}. Is that even? Halve again: ${answer}. Done.`,
+      `÷4 shortcut: ÷2 then ÷2. ${left}÷2=${left/2}, ÷2=${answer}.`,
+    ]);
+
+    if (right === 5) return pick([
+      `÷5 trick: double it, then ÷10. ${left}×2=${left*2}, drop the zero → ${answer}.`,
+      `Every multiple of 5 ends in 0 or 5. ${left}÷5: double to ${left*2}, shift decimal → ${answer}.`,
+      `Think: how many 5s in ${left}? Same as how many 10s in ${left*2}: ${answer}.`,
+      `÷5 = ×0.2. Easier: ×2 ÷10. ${left}×2=${left*2} → ${answer}.`,
+    ]);
+
+    if (right === 6) return pick([
+      `÷6 = ÷2 then ÷3: ${left}÷2=${left/2}, ÷3=${answer}.`,
+      `÷6: halve first (${left/2}), then check if digit sum is divisible by 3. ${left/2}÷3=${answer}.`,
+      `Think: 6×${answer}=${left}. Knowing 6× table makes this instant.`,
+    ]);
+
+    if (right === 7) return pick([
+      `÷7: build the 7× table mentally: 7,14,21,28,35,42,49,56,63,70… ${left} ÷ 7 = ${answer}.`,
+      `Flip it: 7×${answer}=${left}. Times-table recall is the fastest route.`,
+      `Chunk: 7×${Math.floor(answer/10)*10}=${7*Math.floor(answer/10)*10}, then add 7×${answer%10}=${7*(answer%10)}. Total: ${left}.`,
+      `÷7 trick: double the last digit, subtract from the rest. Repeat until small. It's divisible by 7 if you reach 0 or 7.`,
+      `Partial quotients: 7×${Math.floor(left/70)*10}=${Math.floor(left/70)*10*7}, remainder ${left-Math.floor(left/70)*10*7}. ÷7=${answer}.`,
+    ]);
+
+    if (right === 8) return pick([
+      `÷8 = halve 3 times: ${left} → ${left/2} → ${left/4} → ${answer}.`,
+      `Think eighths: ${left}÷8. Half = ${left/2}, quarter = ${left/4}, eighth = ${answer}.`,
+      `÷8 check: is ${left} divisible by 2 three times over? Yes. ${left}→${left/2}→${left/4}→${answer}.`,
+      `÷8: divide by 4 (${left/4}) then by 2 again = ${answer}.`,
+    ]);
+
+    if (right === 9) return pick([
+      `Flip to ×: 9×${answer}=${left}. Times-table recall beats long division.`,
+      `÷9 digit trick: digits of ${left} sum to ${digitSum(left)}. Quotient is ${answer}.`,
+      `Think: 9×10=${10*9}, 9×${answer}=${left}. Step through 9× table to land on ${left}.`,
+      `÷9: every multiple of 9 has a digit sum that's also a multiple of 9. ${digitSum(left)} → answer is ${answer}.`,
+    ]);
+
+    if (right === 10) return pick([
+      `÷10: just shift the decimal one place left. ${left} → ${answer}.`,
+      `Drop a zero (or move the decimal). ${left}÷10 = ${answer}. Instant.`,
+      `Multiplying and dividing by 10 is just about place value. ${left}→${answer}.`,
+    ]);
+
+    if (right === 11) return pick([
+      `÷11 alternating-digit rule: alternately subtract and add digits of ${left} right-to-left. If result is 0 or divisible by 11, it divides evenly. Answer: ${answer}.`,
+      `Flip it: 11×${answer}=${left}. The 11× pattern (11,22,33…) makes this fast.`,
+      `÷11 check: for ${left}, alternating digit sum = ${String(left).split("").reduce((s,d,i)=>s+(i%2===0?+d:-+d),0)}. Divisible by 11 → answer is ${answer}.`,
+      `Partial quotients: 11×${Math.floor(answer/10)*10}=${11*Math.floor(answer/10)*10}, remainder ${left-11*Math.floor(answer/10)*10}÷11=${answer%10}. Total: ${answer}.`,
+    ]);
+
+    if (right === 12) return pick([
+      `÷12 = ÷4 then ÷3: ${left}÷4=${left/4}, ÷3=${answer}.`,
+      `÷12 = ÷3 then ÷4: ${left}÷3=${left/3}, ÷4=${answer}.`,
+      `Think: 12×${answer}=${left}. A strong 12× table is worth memorising.`,
+    ]);
+
+    if (right === 15) return pick([
+      `÷15 = ÷3 then ÷5: ${left}÷3=${left/3}, ÷5=${answer}.`,
+      `÷15 = ÷5 then ÷3: ${left}÷5=${left/5}, ÷3=${answer}.`,
+    ]);
+
+    if (right === 20) return pick([
+      `÷20 = ÷2 then ÷10: ${left}÷2=${left/2}, ÷10=${answer}.`,
+      `Think: 20×${answer}=${left}. 20 is just 2×10 — easy chain.`,
+      `Halve first (${left/2}), then drop a zero: ${answer}.`,
+    ]);
+
+    if (right === 25) return pick([
+      `÷25 trick: ×4 then ÷100. ${left}×4=${left*4}, ÷100=${answer}.`,
+      `25 = 100÷4, so ÷25 = ×4÷100. ${left}×4=${left*4} → ${answer}.`,
+      `Think quarters of 100: 25×4=100. So ${left}÷25 = ${left}×4÷100 = ${answer}.`,
+    ]);
+
+    if (right === 50) return pick([
+      `÷50 trick: ×2 then ÷100. ${left}×2=${left*2} → ${answer}.`,
+      `50 = 100÷2, so ÷50 = ×2÷100. ${left}×2=${left*2}, ÷100=${answer}.`,
+    ]);
+
+    if (right === 100) return pick([
+      `÷100: shift decimal two places left. ${left} → ${answer}. Place value — no calculation needed.`,
+    ]);
+
+    if (right % 10 === 0) {
+      const base = right / 10;
+      return pick([
+        `${right} = ${base}×10. Divide by ${base} first: ${left}÷${base}=${left/base}, then ÷10 = ${answer}.`,
+        `Break it: ÷${base} gives ${left/base}, then ÷10 = ${answer}. Always split round divisors.`,
+      ]);
+    }
+
+    // factor-pair shortcut if divisor factors cleanly
+    for (let f = 2; f <= Math.sqrt(right); f++) {
+      if (right % f === 0) {
+        const g = right / f;
+        return pick([
+          `${right} = ${f}×${g}. Divide in steps: ${left}÷${f}=${left/f}, ÷${g}=${answer}.`,
+          `Break ${right} into ${f}×${g}: do ${left}÷${f}=${left/f} first, then ÷${g}=${answer}.`,
+          `Flip to ×: ${right}×${answer}=${left}. Picture the ${right}× table in reverse.`,
+        ]);
+      }
+    }
+
+    // try chunking as a specific tip
+    const ct = chunkTip(left, right, answer);
+    if (ct) return pick([ct,
+      `Flip to multiplication: ${right}×${answer}=${left}. Asking "${right}×?=${left}" is often faster.`,
+      `Compatible numbers: round ${left} to the nearest multiple of ${right} to estimate, then adjust.`,
+    ]);
+
+    return pick([
+      `Flip to multiplication: ${right}×${answer}=${left}. Asking "${right}×?=${left}" is often faster.`,
+      `Build the ${right}× table up to ${left}: …${right}×${answer}=${left}. Repetition makes it automatic.`,
+      `Chunking (partial quotients): find a round multiple of ${right} near ${left}, divide that chunk, handle the rest. Answer: ${answer}.`,
+      `Estimate first: ${right}×${Math.round(answer/10)*10}≈${right*Math.round(answer/10)*10}. Refine to get ${answer}.`,
+      `Compatible numbers: what round multiple of ${right} is close to ${left}? Use it as your starting point, then adjust.`,
+    ]);
   }
 
+  // ─── MULTIPLICATION ───────────────────────────────────────
+  if (opSymbol === "×") {
+    const a = left, b = right;
+    const lo = Math.min(a,b), hi = Math.max(a,b);
+
+    if (lo === 2) return pick([
+      `×2 = doubling: ${hi}+${hi}=${answer}. Doubling is the fastest mental operation.`,
+      `Double ${hi}: add it to itself. ${hi}+${hi}=${answer}.`,
+      `×2: picture two rows of ${hi} — total ${answer}.`,
+    ]);
+
+    if (lo === 3) return pick([
+      `×3 = double then add one more: ${hi}×2=${hi*2}, +${hi}=${answer}.`,
+      `Triple ${hi}: ${hi}+${hi}=${hi*2}, +${hi}=${answer}.`,
+      `×3: think of three equal groups of ${hi}. ${hi}+${hi}+${hi}=${answer}.`,
+    ]);
+
+    if (lo === 4) return pick([
+      `×4 = double twice: ${hi}×2=${hi*2}, ×2=${answer}.`,
+      `×4: double ${hi} to get ${hi*2}, double again → ${answer}.`,
+      `Four groups of ${hi}: halve your target ${answer} twice to check: ${answer/2}, ${hi}. ✓`,
+    ]);
+
+    if (lo === 5) return pick([
+      `×5: ×10 then halve. ${hi}×10=${hi*10}, ÷2=${answer}.`,
+      `Five is half of ten: ${hi}×5 = ${hi}×10÷2 = ${hi*10}÷2 = ${answer}.`,
+      `×5 trick: if ${hi} is even, halve it and append 0: ${hi/2}0=${answer}. If odd, result ends in 5.`,
+    ]);
+
+    if (lo === 6) return pick([
+      `×6 = ×5 + ×1: ${hi}×5=${hi*5}, +${hi}=${answer}.`,
+      `×6: double then triple, or triple then double. ${hi}×3=${hi*3}, ×2=${answer}.`,
+      `×6 = ×2 × ×3: ${hi}×2=${hi*2}, ×3=${answer}.`,
+    ]);
+
+    if (lo === 7) return pick([
+      `×7 = ×5 + ×2: ${hi}×5=${hi*5}, +${hi*2}=${answer}.`,
+      `×7: hardest single digit. Break it: ${hi}×7 = ${hi}×(5+2) = ${hi*5}+${hi*2} = ${answer}.`,
+      `×7 = ×8 − ×1: ${hi}×8=${hi*8}, −${hi}=${answer}.`,
+      `Build the 7× table: 7,14,21,28,35,42,49,56,63,70… ${hi}×7=${answer}.`,
+    ]);
+
+    if (lo === 8) return pick([
+      `×8 = double three times: ${hi}→${hi*2}→${hi*4}→${answer}.`,
+      `×8 = ×10 − ×2: ${hi}×10=${hi*10}, −${hi*2}=${answer}.`,
+      `Triple-double: ${hi}×2=${hi*2}, ×2=${hi*4}, ×2=${answer}.`,
+    ]);
+
+    if (lo === 9) return pick([
+      `×9 trick: ×10 then subtract one group. ${hi}×10=${hi*10}, −${hi}=${answer}.`,
+      `×9 finger trick: for single-digit ${hi}, hold up ${hi} fingers and put down finger #${lo}… Or just ×10−${hi}=${answer}.`,
+      `×9: the digits of the answer always sum to 9 (for single-digit multipliers). ${answer}: ${String(answer).split("").reduce((s,d)=>s+ +d,0)}. ✓`,
+      `×9 = ×10 − ×1: ${hi}×10=${hi*10}, subtract ${hi} once = ${answer}.`,
+    ]);
+
+    if (lo === 11) return pick([
+      lo < 10
+        ? `×11 single digit: just write the digit twice. ${hi}×11 = ${answer}.`
+        : `×11 two-digit: outer digits stay, middle = digit sum. ${a}×${b}=${answer}.`,
+      `×11 = ×10 + ×1: ${hi}×10=${hi*10}, +${hi}=${answer}.`,
+    ]);
+
+    if (lo === 12) return pick([
+      `×12 = ×10 + ×2: ${hi}×10=${hi*10}, +${hi*2}=${answer}.`,
+      `×12: double the number then add ten times the number: ${hi*2}+${hi*10}=${answer}.`,
+      `Dozen trick: 12×${hi} — think 10 of them (${hi*10}) plus 2 more (${hi*2}) = ${answer}.`,
+    ]);
+
+    if (lo === 15) return pick([
+      `×15 = ×10 + ×5: ${hi}×10=${hi*10}, +${hi*5}=${answer}.`,
+      `×15 = ×3 × ×5: ${hi}×3=${hi*3}, ×5=${answer}.`,
+    ]);
+
+    if (lo === 25) return pick([
+      `×25 = ×100÷4: ${hi}×100=${hi*100}, ÷4=${answer}.`,
+      `25 is a quarter of 100. ${hi}÷4=${hi/4}, ×100=${answer}.`,
+    ]);
+
+    if (lo === 50) return pick([
+      `×50 = ×100÷2: ${hi}×100=${hi*100}, ÷2=${answer}.`,
+      `50 is half of 100: ${hi}×50 = ${hi}×100÷2 = ${answer}.`,
+    ]);
+
+    if (lo === 99) return pick([
+      `×99 = ×100 − ×1: ${hi}×100=${hi*100}, −${hi}=${answer}.`,
+    ]);
+
+    // near multiple of 10
+    const nearHi = Math.round(hi/10)*10, diffHi = hi - nearHi;
+    if (Math.abs(diffHi) === 1) return pick([
+      `${hi} is 1 away from ${nearHi}: ${lo}×${nearHi}=${lo*nearHi}, then ${diffHi>0?`+${lo}`:`−${lo}`} = ${answer}.`,
+      `Round ${hi} to ${nearHi}: ${lo}×${nearHi}=${lo*nearHi}, adjust by ${Math.abs(diffHi)}×${lo}=${Math.abs(diffHi)*lo} → ${answer}.`,
+    ]);
+    if (Math.abs(diffHi) === 2) return pick([
+      `${hi} ≈ ${nearHi}: ${lo}×${nearHi}=${lo*nearHi}, ${diffHi>0?`+${lo*2}`:`−${lo*2}`} = ${answer}.`,
+    ]);
+
+    // decompose hi into tens + units
+    const hiT = Math.floor(hi/10)*10, hiU = hi%10;
+    if (hiT > 0 && hiU > 0) return pick([
+      `Break ${hi} = ${hiT}+${hiU}: ${lo}×${hiT}=${lo*hiT}, ${lo}×${hiU}=${lo*hiU}, add → ${answer}.`,
+      `Distributive law: ${lo}×${hiT}=${lo*hiT}, ${lo}×${hiU}=${lo*hiU}. Sum: ${answer}.`,
+      `Split the bigger number: ${lo}×${hi} = ${lo}×${hiT} + ${lo}×${hiU} = ${lo*hiT}+${lo*hiU}=${answer}.`,
+    ]);
+
+    return pick([
+      `Break one factor into parts, multiply each, then add. ${a}×${b} = ${answer}.`,
+      `Estimate: ${Math.round(a/10)*10}×${Math.round(b/10)*10}≈${Math.round(a/10)*10*Math.round(b/10)*10}. True answer: ${answer}.`,
+      `Repeated doubling or halving can simplify any multiplication. Practice finding which factor to split.`,
+    ]);
+  }
+
+  // ─── ADDITION ─────────────────────────────────────────────
+  if (opSymbol === "+") {
+    const lo = Math.min(left,right), hi = Math.max(left,right);
+
+    // doubles / near-doubles
+    if (left === right) return pick([
+      `Double ${left}: ${left}+${left}=${answer}. Doubles are worth memorising cold.`,
+      `Same number twice — just double it: ${answer}.`,
+    ]);
+    if (Math.abs(left-right) === 1) return pick([
+      `Near-double: ${lo}+${lo}=${lo*2}, +1=${answer}. Near-doubles are almost as fast as doubles.`,
+      `${hi} = ${lo}+1: double ${lo} (=${lo*2}), add 1 = ${answer}.`,
+    ]);
+    if (Math.abs(left-right) === 2) return pick([
+      `Near-double: ${lo}+${lo}=${lo*2}, +2=${answer}.`,
+    ]);
+
+    // make-10 / make-100
+    const lU = left % 10, rU = right % 10;
+    if (lU + rU === 10) return pick([
+      `Units make 10 (${lU}+${rU}=10): add tens separately then add 10. (${left-lU}+${right-rU})+10=${answer}.`,
+      `"Make a 10": ${lU}+${rU}=10, so just add the tens: ${left-lU}+${right-rU}=${left-lU+right-rU}, +10=${answer}.`,
+    ]);
+    if (lU + rU < 10) return pick([
+      `Units don't carry (${lU}+${rU}=${lU+rU}): add tens then units. ${Math.floor(left/10)*10+Math.floor(right/10)*10}+${lU+rU}=${answer}.`,
+      `No carrying needed: (${Math.floor(left/10)*10}+${Math.floor(right/10)*10}) + (${lU}+${rU}) = ${answer}.`,
+    ]);
+
+    // make-10 borrow from right
+    const comp = 10 - lU;
+    if (lU !== 0 && right >= comp) {
+      const rounded = left + comp, rem = right - comp;
+      return pick([
+        `"Make a 10": borrow ${comp} from ${right} → ${left}+${comp}=${rounded}, +${rem}=${answer}.`,
+        `Bridge through ${rounded}: ${left}+${comp}=${rounded}, then +${rem}=${answer}.`,
+        `Round up ${left} to ${rounded} (add ${comp}), then add the rest (${rem}): ${answer}.`,
+      ]);
+    }
+
+    // round-and-adjust
+    const nearR = Math.round(right/10)*10, diffR = right - nearR;
+    if (diffR !== 0) return pick([
+      `Round ${right} to ${nearR}: ${left}+${nearR}=${left+nearR}, then ${diffR>0?`+${diffR}`:`${diffR}`}=${answer}.`,
+      `Adjust: ${left}+${nearR}=${left+nearR}, correct by ${diffR>0?`adding ${diffR}`:`subtracting ${Math.abs(diffR)}`} → ${answer}.`,
+      `Compensate: overshoot to ${nearR}, then correct. ${left+nearR}${diffR<0?`+${Math.abs(diffR)}`:`−${diffR}`}=${answer}.`,
+    ]);
+
+    // left-to-right
+    const lT=Math.floor(left/10)*10, rT=Math.floor(right/10)*10;
+    return pick([
+      `Left-to-right: tens (${lT}+${rT}=${lT+rT}) then units (${lU}+${rU}=${lU+rU}). Total: ${answer}.`,
+      `Front-end first: ${lT}+${rT}=${lT+rT}, then +${lU+rU}=${answer}.`,
+      `Add the big parts first: ${hi}+${Math.floor(lo/10)*10}=${hi+Math.floor(lo/10)*10}, +${lo%10}=${answer}.`,
+    ]);
+  }
+
+  // ─── SUBTRACTION ──────────────────────────────────────────
   if (opSymbol === "−") {
-    // count-up
+    // equal subtraction from round number
+    if (left % 10 === 0 || left % 100 === 0) return pick([
+      `Subtracting from a round number: ${left}−${right}. Count back: ${left}−${Math.floor(right/10)*10}=${left-Math.floor(right/10)*10}, −${right%10}=${answer}.`,
+      `${left} is round — split ${right}: ${left}−${Math.floor(right/10)*10}=${left-Math.floor(right/10)*10}, −${right%10}=${answer}.`,
+    ]);
+
+    // count-up (shopkeeper's method)
     const roundUp = Math.ceil(right/10)*10;
     if (roundUp !== right && roundUp < left) {
-      const step1=roundUp-right, step2=left-roundUp;
-      return `Count up from ${right}: +${step1} reaches ${roundUp}, +${step2} reaches ${left}. Total jump: ${step1}+${step2}=${answer}.`;
+      const s1=roundUp-right, s2=left-roundUp;
+      return pick([
+        `Count up from ${right}: +${s1}→${roundUp}, +${s2}→${left}. Gap = ${s1}+${s2}=${answer}.`,
+        `Shopkeeper's method: ${right}+${s1}=${roundUp}, +${s2}=${left}. Total added: ${answer}.`,
+        `Bridge through ${roundUp}: ${right}→${roundUp} needs ${s1}, then ${roundUp}→${left} needs ${s2}. Sum: ${answer}.`,
+      ]);
     }
-    // round-adjust
-    const nearRight=Math.round(right/10)*10, diff=right-nearRight;
-    if (diff!==0) return `Round ${right} to ${nearRight}: ${left}−${nearRight}=${left-nearRight}, then ${diff>0?`−${diff}`:`+${Math.abs(diff)}`} = ${answer}.`;
-    return `Think of the gap: count from ${right} up to ${left} in chunks of 10 or 100 — totals faster than borrowing.`;
+
+    // round-and-adjust
+    const nearR = Math.round(right/10)*10, diffR = right - nearR;
+    if (diffR !== 0) return pick([
+      `Round ${right} to ${nearR}: ${left}−${nearR}=${left-nearR}, then ${diffR>0?`−${diffR}`:`+${Math.abs(diffR)}`}=${answer}.`,
+      `Adjust: subtract ${nearR} first (${left-nearR}), then ${diffR>0?`take off ${diffR} more`:`add back ${Math.abs(diffR)}`} → ${answer}.`,
+      `Compensate: ${left}−${nearR}=${left-nearR}, correct by ${diffR<0?`+${Math.abs(diffR)}`:`−${diffR}`}=${answer}.`,
+    ]);
+
+    // near-doubles subtract
+    if (left - right === right) return pick([
+      `${left} = 2×${right}: taking away half leaves ${answer}.`,
+    ]);
+
+    // complement to 100
+    if (right + answer === 100) return pick([
+      `${right} and ${answer} are complements of 100: ${right}+${answer}=100. Worth memorising pairs.`,
+    ]);
+
+    const rT=Math.floor(right/10)*10, rU=right%10;
+    if (rT>0 && rU>0) return pick([
+      `Split ${right} = ${rT}+${rU}: ${left}−${rT}=${left-rT}, −${rU}=${answer}.`,
+      `Subtract tens then units: ${left}−${rT}=${left-rT}, −${rU}=${answer}.`,
+      `Chunk: take away ${rT} (→${left-rT}), then ${rU} more (→${answer}).`,
+    ]);
+
+    return pick([
+      `Count the gap from ${right} to ${left}: that distance is ${answer}.`,
+      `Subtract in parts: round down ${right}, then adjust. Answer: ${answer}.`,
+      `Picture a number line: jump from ${right} to ${left} in two hops. Total distance: ${answer}.`,
+    ]);
   }
 
-  return `Every problem you miss is a chance to build a new shortcut. Review this one and it'll stick.`;
+  return pick([
+    `Every miss reveals a gap to fill. Replay this problem until the answer is automatic.`,
+    `Patterns make arithmetic fast. Look for structure: factors, multiples, round numbers nearby.`,
+    `Mental math is about shortcuts, not memory alone. What pattern did this problem follow?`,
+  ]);
 }
 
 /* ============================================================

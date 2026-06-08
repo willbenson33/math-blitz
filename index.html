@@ -339,6 +339,27 @@
   .mini-btn:active { transform: scale(0.96); }
 
   .footer-note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
+
+  .settings-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 14px 18px;
+    margin-top: 8px;
+    border-radius: var(--radius);
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .settings-toggle:active { background: var(--panel-2); }
+  .caret { font-size: 18px; transition: transform .2s ease; }
+  .caret.open { transform: rotate(180deg); }
+  .settings-body { margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -451,23 +472,25 @@ const basePoints = (pos) => (pos + 1) * 5;
 function SettingsScreen({ onStart }) {
   const [range, setRange] = useState(500);
   const [rounds, setRounds] = useState(10);
-  const [timeLimit, setTimeLimit] = useState(10); // 0 = no limit, else seconds
+  const [timeLimit, setTimeLimit] = useState(10);
   const [rounded, setRounded] = useState(false);
   const [noZero, setNoZero] = useState(false);
-  const [parity, setParity] = useState("any"); // any | odd | even
+  const [parity, setParity] = useState("any");
   const [seed, setSeed] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const buildSettings = () => ({
+    range,
+    rounds: Math.max(1, Math.min(99, parseInt(rounds, 10) || 10)),
+    timeLimit,
+    rounded,
+    noZero,
+    parity,
+  });
 
   const start = (seedOverride) => {
     const finalSeed = seedOverride ?? (seed.trim() !== "" ? seed.trim() : randomSeed());
-    const settings = {
-      range,
-      rounds: Math.max(1, Math.min(99, parseInt(rounds, 10) || 10)),
-      timeLimit,
-      rounded,
-      noZero,
-      parity,
-    };
-    onStart(finalSeed, settings);
+    onStart(finalSeed, buildSettings());
   };
 
   const Toggle = ({ on, set, label, hint }) => (
@@ -490,104 +513,119 @@ function SettingsScreen({ onStart }) {
       <h1 className="title">➗ Math Blitz</h1>
       <div className="subtitle">Division speed drills — beat your best run</div>
 
-      <div className="panel">
-        <div className="field">
-          <span className="label">Number range (dividend up to)</span>
-          <div className="seg">
-            {[100, 500, 1000].map((r) => (
-              <button key={r} className={range === r ? "on" : ""} onClick={() => setRange(r)}>
-                {r}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="row2">
-          <div className="field">
-            <span className="label">Rounds</span>
-            <input
-              type="number"
-              min="1"
-              max="99"
-              value={rounds}
-              onChange={(e) => setRounds(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <span className="label">Time / round</span>
-            <div className="seg">
-              {[
-                { v: 0, t: "∞" },
-                { v: 5, t: "5s" },
-                { v: 10, t: "10s" },
-                { v: 20, t: "20s" },
-              ].map((o) => (
-                <button
-                  key={o.v}
-                  className={timeLimit === o.v ? "on" : ""}
-                  onClick={() => setTimeLimit(o.v)}
-                  style={{ minWidth: 0, padding: "12px 4px" }}
-                >
-                  {o.t}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* Daily Challenge */}
+      <button
+        className="start-btn"
+        style={{ background: "linear-gradient(180deg,#5b8cff,#3f6fe0)", boxShadow: "0 10px 24px rgba(91,140,255,0.35)", marginBottom: 12 }}
+        onClick={() => start(dailySeed())}
+      >
+        🗓️ Today&rsquo;s Challenge
+      </button>
+      <div className="footer-note" style={{ marginTop: -4, marginBottom: 18 }}>
+        Same problems for everyone today — compare scores!
       </div>
 
-      <div className="panel">
-        <span className="label">Problem rules</span>
-        <Toggle
-          on={rounded}
-          set={setRounded}
-          label="Rounded numbers only"
-          hint="Divisors are round (×10), no remainders"
-        />
-        <Toggle on={noZero} set={setNoZero} label="No zero in result" hint="Answers never contain a 0 digit" />
-
-        <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
-          <span className="label">Parity</span>
-          <div className="seg">
-            {[
-              { v: "any", t: "Any" },
-              { v: "odd", t: "Odds only" },
-              { v: "even", t: "Evens only" },
-            ].map((o) => (
-              <button key={o.v} className={parity === o.v ? "on" : ""} onClick={() => setParity(o.v)}>
-                {o.t}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
+      {/* Custom seed + start */}
       <div className="panel">
         <div className="field" style={{ marginBottom: 12 }}>
-          <span className="label">Seed (optional — leave blank for random)</span>
+          <span className="label">Custom seed (optional)</span>
           <input
             type="text"
-            placeholder="e.g. ABC123"
+            placeholder="Leave blank for a random seed"
             value={seed}
             onChange={(e) => setSeed(e.target.value)}
           />
         </div>
-        <button
-          className="chip"
-          style={{ width: "100%", flex: "none", background: "linear-gradient(180deg,#5b8cff,#3f6fe0)", borderColor: "var(--accent-2)" }}
-          onClick={() => start(dailySeed())}
-        >
-          🗓️ Today&rsquo;s Challenge
+        <button className="start-btn" style={{ marginTop: 0 }} onClick={() => start()}>
+          Start Blitz →
         </button>
-        <div className="thint" style={{ marginTop: 8, textAlign: "center" }}>
-          Same problems for everyone today — compare scores!
-        </div>
       </div>
 
-      <button className="start-btn" onClick={start}>
-        Start Blitz →
+      {/* Collapsible settings */}
+      <button
+        className="settings-toggle"
+        onClick={() => setSettingsOpen((o) => !o)}
+        aria-expanded={settingsOpen}
+      >
+        <span>⚙️ Settings</span>
+        <span className={"caret" + (settingsOpen ? " open" : "")}>▾</span>
       </button>
-      <div className="footer-note">Same seed + same settings = same problems, every time.</div>
+
+      {settingsOpen && (
+        <div className="settings-body">
+          <div className="panel" style={{ marginBottom: 12 }}>
+            <div className="field">
+              <span className="label">Number range (dividend up to)</span>
+              <div className="seg">
+                {[100, 500, 1000].map((r) => (
+                  <button key={r} className={range === r ? "on" : ""} onClick={() => setRange(r)}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="row2">
+              <div className="field">
+                <span className="label">Rounds</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={rounds}
+                  onChange={(e) => setRounds(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <span className="label">Time / round</span>
+                <div className="seg">
+                  {[
+                    { v: 0, t: "∞" },
+                    { v: 5, t: "5s" },
+                    { v: 10, t: "10s" },
+                    { v: 20, t: "20s" },
+                  ].map((o) => (
+                    <button
+                      key={o.v}
+                      className={timeLimit === o.v ? "on" : ""}
+                      onClick={() => setTimeLimit(o.v)}
+                      style={{ minWidth: 0, padding: "12px 4px" }}
+                    >
+                      {o.t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="panel" style={{ marginBottom: 0 }}>
+            <span className="label">Problem rules</span>
+            <Toggle
+              on={rounded}
+              set={setRounded}
+              label="Rounded numbers only"
+              hint="Divisors are round (×10), no remainders"
+            />
+            <Toggle on={noZero} set={setNoZero} label="No zero in result" hint="Answers never contain a 0 digit" />
+
+            <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
+              <span className="label">Parity</span>
+              <div className="seg">
+                {[
+                  { v: "any", t: "Any" },
+                  { v: "odd", t: "Odds only" },
+                  { v: "even", t: "Evens only" },
+                ].map((o) => (
+                  <button key={o.v} className={parity === o.v ? "on" : ""} onClick={() => setParity(o.v)}>
+                    {o.t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

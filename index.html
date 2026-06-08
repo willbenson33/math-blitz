@@ -340,6 +340,18 @@
 
   .footer-note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
 
+  .tip-card {
+    background: linear-gradient(180deg, #1e2a42, #17202f);
+    border: 1px solid rgba(91,140,255,0.35);
+    border-radius: var(--radius);
+    padding: 22px 20px;
+    box-shadow: 0 0 0 3px rgba(91,140,255,0.12), var(--shadow);
+    animation: tipIn .3s ease;
+  }
+  @keyframes tipIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  .tip-icon { font-size: 30px; text-align: center; margin-bottom: 10px; }
+  .tip-text { font-size: 17px; line-height: 1.55; color: var(--text); font-weight: 500; }
+
   /* Home screen: vertically centred */
   .home-wrap {
     min-height: 100vh;
@@ -528,6 +540,82 @@ function buildRounds(seedStr, settings) {
 const basePoints = (pos) => (pos + 1) * 5;
 
 /* ============================================================
+   Mental-math tips  (Teach Me Mode)
+   Returns a short contextual tip for the given problem.
+   ============================================================ */
+function getTip({ left, right, answer, opSymbol }) {
+  if (opSymbol === "÷") {
+    if (right === 2)  return `Halving trick: ${left} ÷ 2 — just split it in two. ${left/2}+${left/2}=${left}, so the answer is ${answer}.`;
+    if (right === 4)  return `÷4 = halve twice: ${left} → ${left/2} → ${answer}. Double-halving is faster than long division.`;
+    if (right === 8)  return `÷8 = halve three times: ${left} → ${left/2} → ${left/4} → ${answer}.`;
+    if (right === 5)  return `÷5 shortcut: double it, then ÷10. ${left}×2=${left*2}, shift the decimal → ${answer}.`;
+    if (right === 10) return `÷10: just drop the last zero (or shift decimal). ${left} → ${answer}.`;
+    if (right === 20) return `÷20 = ÷2 then ÷10: ${left}÷2=${left/2}, ÷10 = ${answer}.`;
+    if (right === 25) return `÷25 shortcut: multiply by 4, then ÷100. ${left}×4=${left*4}, ÷100 = ${answer}.`;
+    if (right === 50) return `÷50 shortcut: ×2 then ÷100. ${left}×2=${left*2}, ÷100 = ${answer}.`;
+    if (right === 9)  return `Think multiplication: 9×${answer}=${left}. Knowing times tables turns division instant.`;
+    if (right === 3)  return `÷3 check: digits of ${left} add up to ${String(left).split("").reduce((s,d)=>s+Number(d),0)}, which is divisible by 3. Answer: ${answer}.`;
+    if (right % 10 === 0) {
+      const base = right / 10;
+      return `${right} is ${base}×10: divide by ${base} first (=${left/base}), then ÷10 = ${answer}.`;
+    }
+    return `Flip to multiplication: ${right}×${answer}=${left}. Asking "${right}×? =${left}" is often faster than dividing.`;
+  }
+
+  if (opSymbol === "×") {
+    const a = left, b = right;
+    if (b === 2 || a === 2) { const x=a===2?b:a; return `×2 = doubling: ${x}+${x}=${answer}. Fast doubling is a core mental math skill.`; }
+    if (b === 4 || a === 4) { const x=a===4?b:a; return `×4 = double twice: ${x}×2=${x*2}, ×2 again = ${answer}.`; }
+    if (b === 8 || a === 8) { const x=a===8?b:a; return `×8 = double three times: ${x}→${x*2}→${x*4}→${answer}.`; }
+    if (b === 5 || a === 5) { const x=a===5?b:a; return `×5 shortcut: ×10 then halve. ${x}×10=${x*10}, ÷2 = ${answer}.`; }
+    if (b === 9 || a === 9) { const x=a===9?b:a; return `×9 trick: ×10 then subtract. ${x}×10=${x*10}, −${x} = ${answer}.`; }
+    if (b === 11|| a === 11){ const x=a===11?b:a; return x<10 ? `×11 for single digits: repeat it — ${x}${x} = ${answer}.` : `×11 two-digit trick: write the outer digits, put their sum in the middle. ${a}×${b}=${answer}.`; }
+    if (b === 25|| a === 25){ const x=a===25?b:a; return `×25 = ÷4 then ×100: ${x}÷4=${x/4}, ×100 = ${answer}.`; }
+    if (b === 12|| a === 12){ const x=a===12?b:a; return `×12 = ×10 + ×2: ${x}×10=${x*10}, +${x*2} = ${answer}.`; }
+    // near multiple of 10
+    const nearB = Math.round(b/10)*10, diffB = b-nearB;
+    if (Math.abs(diffB)===1) return `${b} is close to ${nearB}: ${a}×${nearB}=${a*nearB}, then ${diffB>0?`+${a}`:`−${a}`} = ${answer}.`;
+    // decompose larger into tens+units
+    const bTens=Math.floor(b/10)*10, bUnits=b%10;
+    if (bTens>0 && bUnits>0) return `Break ${b} apart: ${a}×${bTens}=${a*bTens}, ${a}×${bUnits}=${a*bUnits}, add → ${answer}.`;
+    return `Break one number into parts you know, multiply each piece, then add. Builds to instant recall.`;
+  }
+
+  if (opSymbol === "+") {
+    // make-10 trick
+    const leftUnits = left % 10;
+    if (leftUnits !== 0) {
+      const comp = 10 - leftUnits;
+      if (right >= comp) {
+        const rounded = left + comp, remainder = right - comp;
+        return `"Make a 10" trick: borrow ${comp} from ${right} → ${left}+${comp}=${rounded}. Then add remaining ${remainder}: ${answer}.`;
+      }
+    }
+    // round-adjust
+    const nearRight = Math.round(right/10)*10, diff = right-nearRight;
+    if (diff !== 0) return `Round ${right} to ${nearRight}: ${left}+${nearRight}=${left+nearRight}, then ${diff>0?`+${diff}`:`${diff}`} = ${answer}.`;
+    // left-to-right
+    const lTens=Math.floor(left/10)*10, rTens=Math.floor(right/10)*10;
+    return `Add left-to-right: tens first (${lTens}+${rTens}=${lTens+rTens}), then units (${left%10}+${right%10}=${left%10+right%10}). Combine: ${answer}.`;
+  }
+
+  if (opSymbol === "−") {
+    // count-up
+    const roundUp = Math.ceil(right/10)*10;
+    if (roundUp !== right && roundUp < left) {
+      const step1=roundUp-right, step2=left-roundUp;
+      return `Count up from ${right}: +${step1} reaches ${roundUp}, +${step2} reaches ${left}. Total jump: ${step1}+${step2}=${answer}.`;
+    }
+    // round-adjust
+    const nearRight=Math.round(right/10)*10, diff=right-nearRight;
+    if (diff!==0) return `Round ${right} to ${nearRight}: ${left}−${nearRight}=${left-nearRight}, then ${diff>0?`−${diff}`:`+${Math.abs(diff)}`} = ${answer}.`;
+    return `Think of the gap: count from ${right} up to ${left} in chunks of 10 or 100 — totals faster than borrowing.`;
+  }
+
+  return `Every problem you miss is a chance to build a new shortcut. Review this one and it'll stick.`;
+}
+
+/* ============================================================
    PlayControls — CTAs on home + summary (daily / custom seed+start / settings link)
    ============================================================ */
 function PlayControls({ onStart, onOpenSettings, initialSeed = "" }) {
@@ -586,6 +674,7 @@ function SettingsPage({ initialSettings = {}, onBack }) {
   const [noZero, setNoZero] = useState(initialSettings.noZero ?? false);
   const [parity, setParity] = useState(initialSettings.parity ?? "any");
   const [ops, setOps] = useState(initOps);
+  const [teachMode, setTeachMode] = useState(initialSettings.teachMode ?? false);
 
   const toggleOp = (key) => {
     setOps((prev) => {
@@ -604,6 +693,7 @@ function SettingsPage({ initialSettings = {}, onBack }) {
     noZero,
     parity,
     operations: ops,
+    teachMode,
   });
 
   const Toggle = ({ on, set, label, hint }) => (
@@ -689,6 +779,15 @@ function SettingsPage({ initialSettings = {}, onBack }) {
         </div>
       </div>
 
+      <div className="panel">
+        <Toggle
+          on={teachMode}
+          set={setTeachMode}
+          label="Teach Me Mode"
+          hint="After a missed question, shows a mental math shortcut for next time"
+        />
+      </div>
+
       <button className="start-btn" onClick={save}>Done</button>
     </div>
   );
@@ -722,6 +821,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [perfectStreak, setPerfectStreak] = useState(0);
   const [timeLeft, setTimeLeft] = useState(settings.timeLimit);
   const [revealAnswer, setRevealAnswer] = useState(false);
+  const [tipText, setTipText] = useState(null);
 
   // per-round bookkeeping (refs so timers/handlers see latest)
   const retriedPos = useRef(new Set());   // positions that needed a retry
@@ -748,6 +848,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     setKeyFlash(null);
     setTimeLeft(settings.timeLimit);
     setRevealAnswer(false);
+    setTipText(null);
   }, [settings.timeLimit]);
 
   // advance to next round (or finish)
@@ -795,7 +896,13 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       roundPerfect.current = false;
       revealing.current = true;
       setRevealAnswer(true);
-      setTimeout(() => finishRound(false), 1200);
+      setTimeout(() => {
+        if (settings.teachMode) {
+          setTipText(getTip(problem));
+        } else {
+          finishRound(false);
+        }
+      }, 1200);
       return;
     }
     const id = setTimeout(() => setTimeLeft((t) => +(t - 0.1).toFixed(1)), 100);
@@ -908,23 +1015,33 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
       <div className="slots">{slots}</div>
 
-      <div className="numpad">
-        {keys.map((k) => {
-          let cls = "key";
-          if (keyFlash && keyFlash.digit === k) cls += keyFlash.kind === "green" ? " flash-green" : " flash-red";
-          return (
-            <button key={k} className={cls} onClick={() => handleDigit(k)}>{k}</button>
-          );
-        })}
-        <button className="key wide action" onClick={handleBackspace}>⌫</button>
-        <button
-          className={"key" + (keyFlash && keyFlash.digit === "0" ? (keyFlash.kind === "green" ? " flash-green" : " flash-red") : "")}
-          onClick={() => handleDigit("0")}
-        >
-          0
-        </button>
-        <button className="key wide action" onClick={() => onFinish(null)}>Quit</button>
-      </div>
+      {tipText ? (
+        <div className="tip-card">
+          <div className="tip-icon">💡</div>
+          <div className="tip-text">{tipText}</div>
+          <button className="start-btn" style={{ marginTop: 18 }} onClick={() => finishRound(false)}>
+            Got it →
+          </button>
+        </div>
+      ) : (
+        <div className="numpad">
+          {keys.map((k) => {
+            let cls = "key";
+            if (keyFlash && keyFlash.digit === k) cls += keyFlash.kind === "green" ? " flash-green" : " flash-red";
+            return (
+              <button key={k} className={cls} onClick={() => handleDigit(k)}>{k}</button>
+            );
+          })}
+          <button className="key wide action" onClick={handleBackspace}>⌫</button>
+          <button
+            className={"key" + (keyFlash && keyFlash.digit === "0" ? (keyFlash.kind === "green" ? " flash-green" : " flash-red") : "")}
+            onClick={() => handleDigit("0")}
+          >
+            0
+          </button>
+          <button className="key wide action" onClick={() => onFinish(null)}>Quit</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1001,6 +1118,7 @@ function App() {
   const defaultSettings = {
     range: 500, rounds: 10, timeLimit: 10, rounded: false, noZero: false, parity: "any",
     operations: { division: true, multiplication: false, addition: false, subtraction: false },
+    teachMode: false,
   };
   const [gameSettings, setGameSettings] = useState(() => {
     try {

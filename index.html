@@ -199,6 +199,20 @@
   .score-pop { animation: pop .25s ease; }
   @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(1.35); color:var(--green)} 100%{transform:scale(1)} }
 
+  .time-bonus {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--amber);
+    min-height: 18px;
+    animation: bonusFly .9s ease forwards;
+  }
+  @keyframes bonusFly {
+    0%   { opacity:0; transform:translateY(2px); }
+    15%  { opacity:1; }
+    75%  { opacity:1; transform:translateY(-10px); }
+    100% { opacity:0; transform:translateY(-14px); }
+  }
+
   .fire-bar {
     text-align: center;
     font-size: 28px;
@@ -1362,6 +1376,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [timeLeft, setTimeLeft] = useState(settings.timeLimit);
   const [revealAnswer, setRevealAnswer] = useState(false);
   const [tipText, setTipText] = useState(null);
+  const [timeBonusDisplay, setTimeBonusDisplay] = useState(null);
 
   // per-round bookkeeping (refs so timers/handlers see latest)
   const retriedPos = useRef(new Set());   // positions that needed a retry
@@ -1369,6 +1384,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const roundPerfect = useRef(true);
   const advancing = useRef(false);
   const revealing = useRef(false); // true during the correct-answer flash after timeout
+  const roundStartTime = useRef(Date.now());
 
   // aggregate stats across the whole run
   const stats = useRef({ firstTryDigits: 0, totalDigits: 0, perfectRounds: 0 });
@@ -1383,12 +1399,14 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     roundPerfect.current = true;
     advancing.current = false;
     revealing.current = false;
+    roundStartTime.current = Date.now();
     setLocked([]);
     setWrongFlash(null);
     setKeyFlash(null);
     setTimeLeft(settings.timeLimit);
     setRevealAnswer(false);
     setTipText(null);
+    setTimeBonusDisplay(null);
   }, [settings.timeLimit]);
 
   // advance to next round (or finish)
@@ -1475,6 +1493,14 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       setLocked(next);
 
       if (next.length === answerStr.length) {
+        if (settings.timeLimit > 0) {
+          const elapsed = (Date.now() - roundStartTime.current) / 1000;
+          const bonus = Math.max(0, Math.round((settings.timeLimit - elapsed) * 3));
+          if (bonus > 0) {
+            setScore((s) => s + bonus);
+            setTimeBonusDisplay(bonus);
+          }
+        }
         finishRound(roundPerfect.current);
       } else if (settings.timeLimit) {
         setTimeLeft(settings.timeLimit); // reset clock on each correct digit
@@ -1530,6 +1556,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         <div className="stat">
           <div className="k">Score</div>
           <div className={"v" + (scorePop ? " score-pop" : "")}>{score}</div>
+          {timeBonusDisplay && <div key={timeBonusDisplay + roundIdx} className="time-bonus">+{timeBonusDisplay}⚡</div>}
         </div>
         <div className="stat">
           <div className="k">Seed</div>

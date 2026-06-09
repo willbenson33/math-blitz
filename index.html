@@ -1472,6 +1472,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
   const handleDigit = (d) => {
     if (advancing.current) return;
+    if (revealing.current) return;
     const expected = answerStr[pos];
 
     if (String(d) === expected) {
@@ -1588,7 +1589,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
           </button>
         </div>
       ) : (
-        <div className="numpad">
+        <div className="numpad" style={revealAnswer ? { opacity: 0.35, pointerEvents: "none" } : undefined}>
           {keys.map((k) => {
             let cls = "key";
             if (keyFlash && keyFlash.digit === k) cls += keyFlash.kind === "green" ? " flash-green" : " flash-red";

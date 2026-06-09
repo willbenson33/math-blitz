@@ -1451,9 +1451,33 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 }
 
 /* ============================================================
+   Summary Start Blitz  (seed input + start, no daily / settings)
+   ============================================================ */
+function SummaryStartBlitz({ onStart }) {
+  const [seed, setSeed] = useState("");
+  const start = () => onStart(seed.trim() !== "" ? seed.trim() : randomSeed());
+  return (
+    <div className="panel" style={{ marginBottom: 14 }}>
+      <div className="field" style={{ marginBottom: 12 }}>
+        <span className="label">Custom seed (optional)</span>
+        <input
+          type="text"
+          placeholder="Leave blank for a random seed"
+          value={seed}
+          onChange={(e) => setSeed(e.target.value)}
+        />
+      </div>
+      <button className="start-btn" style={{ marginTop: 0 }} onClick={start}>
+        Start Blitz →
+      </button>
+    </div>
+  );
+}
+
+/* ============================================================
    Summary Screen
    ============================================================ */
-function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, onReplay, onStart, onOpenSettings }) {
+function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, onReplay, onStart }) {
   const accuracy = result.totalDigits > 0
     ? Math.round((result.firstTryDigits / result.totalDigits) * 100)
     : 0;
@@ -1530,11 +1554,11 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
         </div>
       )}
 
-      <button className="start-btn" style={{ marginBottom: 20 }} onClick={onReplay}>
+      <SummaryStartBlitz onStart={onStart} />
+
+      <button className="start-btn" style={{ marginBottom: 20, background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text)", boxShadow: "none" }} onClick={onReplay}>
         ↻ Replay this seed
       </button>
-
-      <PlayControls onStart={onStart} onOpenSettings={onOpenSettings} initialSeed="" />
     </div>
   );
 }
@@ -1639,7 +1663,6 @@ function App() {
         currentTs={currentTs}
         onReplay={replaySeed}
         onStart={startGame}
-        onOpenSettings={openSettings}
       />
     );
 

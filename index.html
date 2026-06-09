@@ -772,7 +772,6 @@ function getTip({ left, right, answer, opSymbol }) {
         return pick([
           `${right} = ${f}×${g}. Divide in steps: ${left}÷${f}=${left/f}, ÷${g}=${answer}.`,
           `Break ${right} into ${f}×${g}: do ${left}÷${f}=${left/f} first, then ÷${g}=${answer}.`,
-          `Flip to ×: ${right}×${answer}=${left}. Picture the ${right}× table in reverse.`,
         ]);
       }
     }
@@ -780,12 +779,10 @@ function getTip({ left, right, answer, opSymbol }) {
     // try chunking as a specific tip
     const ct = chunkTip(left, right, answer);
     if (ct) return pick([ct,
-      `Flip to multiplication: ${right}×${answer}=${left}. Asking "${right}×?=${left}" is often faster.`,
       `Compatible numbers: round ${left} to the nearest multiple of ${right} to estimate, then adjust.`,
     ]);
 
     return pick([
-      `Flip to multiplication: ${right}×${answer}=${left}. Asking "${right}×?=${left}" is often faster.`,
       `Build the ${right}× table up to ${left}: …${right}×${answer}=${left}. Repetition makes it automatic.`,
       `Chunking (partial quotients): find a round multiple of ${right} near ${left}, divide that chunk, handle the rest. Answer: ${answer}.`,
       `Estimate first: ${right}×${Math.round(answer/10)*10}≈${right*Math.round(answer/10)*10}. Refine to get ${answer}.`,

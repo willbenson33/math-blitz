@@ -1492,7 +1492,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
       if (next.length === answerStr.length) {
         if (settings.timeLimit > 0) {
-          const bonus = Math.round((timeLeft / settings.timeLimit) * 30);
+          const bonus = Math.round(timeLeft * 200 / (settings.timeLimit * settings.timeLimit));
           if (bonus > 0) {
             setScore((s) => s + bonus);
             setTimeBonusDisplay(bonus);

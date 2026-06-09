@@ -1384,7 +1384,6 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const roundPerfect = useRef(true);
   const advancing = useRef(false);
   const revealing = useRef(false); // true during the correct-answer flash after timeout
-  const roundStartTime = useRef(Date.now());
 
   // aggregate stats across the whole run
   const stats = useRef({ firstTryDigits: 0, totalDigits: 0, perfectRounds: 0 });
@@ -1399,7 +1398,6 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     roundPerfect.current = true;
     advancing.current = false;
     revealing.current = false;
-    roundStartTime.current = Date.now();
     setLocked([]);
     setWrongFlash(null);
     setKeyFlash(null);
@@ -1494,8 +1492,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
       if (next.length === answerStr.length) {
         if (settings.timeLimit > 0) {
-          const elapsed = (Date.now() - roundStartTime.current) / 1000;
-          const bonus = Math.max(0, Math.round((settings.timeLimit - elapsed) * 3));
+          const bonus = Math.round((timeLeft / settings.timeLimit) * 30);
           if (bonus > 0) {
             setScore((s) => s + bonus);
             setTimeBonusDisplay(bonus);

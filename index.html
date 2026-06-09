@@ -430,6 +430,34 @@
   .lb-rank { font-size: 14px; font-weight: 900; color: var(--muted); width: 20px; text-align: center; flex-shrink: 0; }
   .lb-score { font-size: 20px; font-weight: 900; flex: 1; }
   .lb-meta { font-size: 12px; color: var(--muted); text-align: right; line-height: 1.5; }
+
+  /* ---------- Challenges ---------- */
+  .challenge-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .challenge-card {
+    background: linear-gradient(180deg, var(--panel), var(--bg-2));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius);
+    padding: 20px 12px 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform .08s ease, border-color .15s ease;
+    color: var(--text);
+    box-shadow: var(--shadow);
+  }
+  .challenge-card:active { transform: scale(0.97); }
+  .challenge-card.ch-active {
+    border-color: var(--accent);
+    background: rgba(91,140,255,0.12);
+    box-shadow: 0 0 0 2px rgba(91,140,255,0.2), var(--shadow);
+  }
+  .ch-emoji { font-size: 26px; margin-bottom: 8px; }
+  .ch-name { font-size: 14px; font-weight: 800; margin-bottom: 4px; }
+  .ch-tagline { font-size: 12px; color: var(--muted); line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -501,9 +529,12 @@ function passesFilters(left, right, answer, s, op) {
 
 function generateDivision(rng, s) {
   const max = s.range;
-  const maxDivisor = Math.max(2, Math.min(Math.floor(max / 2), 99));
+  const dMin = s.divisorMin ?? 2;
+  const dMax = s.divisorMax != null
+    ? Math.min(s.divisorMax, Math.floor(max / 2))
+    : Math.max(dMin, Math.min(Math.floor(max / 2), 99));
   for (let i = 0; i < 6000; i++) {
-    const right = randInt(rng, 2, maxDivisor);
+    const right = randInt(rng, dMin, Math.max(dMin, dMax));
     const maxQ = Math.floor(max / right);
     if (maxQ < 2) continue;
     const answer = randInt(rng, 2, maxQ);
@@ -511,19 +542,20 @@ function generateDivision(rng, s) {
     if (left <= max && passesFilters(left, right, answer, s, "division"))
       return { left, opSymbol: "÷", right, answer };
   }
-  const right = randInt(rng, 2, Math.min(9, maxDivisor));
-  const answer = randInt(rng, 2, Math.floor(max / right));
+  const right = dMin;
+  const answer = randInt(rng, 2, Math.max(2, Math.floor(max / right)));
   return { left: right * answer, opSymbol: "÷", right, answer };
 }
 
 function generateMultiplication(rng, s) {
   const max = s.range;
-  const maxFactor = Math.max(2, Math.floor(Math.sqrt(max)));
+  const fMax = s.factorMax ?? Math.max(2, Math.floor(Math.sqrt(max)));
   for (let i = 0; i < 6000; i++) {
-    const left = randInt(rng, 2, maxFactor);
-    const right = randInt(rng, 2, Math.floor(max / left));
+    const left = randInt(rng, 2, fMax);
+    const rightBound = s.factorMax ? fMax : Math.floor(max / left);
+    const right = randInt(rng, 2, Math.max(2, rightBound));
     const answer = left * right;
-    if (answer >= 2 && answer <= max && passesFilters(left, right, answer, s, "multiplication"))
+    if (answer >= 2 && passesFilters(left, right, answer, s, "multiplication"))
       return { left, opSymbol: "×", right, answer };
   }
   return { left: 3, opSymbol: "×", right: 4, answer: 12 };
@@ -573,6 +605,69 @@ function buildRounds(seedStr, settings) {
   }
   return rounds;
 }
+
+/* ============================================================
+   Challenges  (curated game modes with specific constraints)
+   Each challenge overrides a subset of settings for problem generation.
+   ============================================================ */
+const CHALLENGES = [
+  {
+    id: "single-div",
+    emoji: "1️⃣",
+    name: "÷ Single Digit",
+    tagline: "Divide by 2–9",
+    override: { operations:{division:true,multiplication:false,addition:false,subtraction:false}, divisorMin:2, divisorMax:9 },
+  },
+  {
+    id: "double-div",
+    emoji: "🔢",
+    name: "÷ Two Digits",
+    tagline: "Divide by 10–99",
+    override: { operations:{division:true,multiplication:false,addition:false,subtraction:false}, divisorMin:10, divisorMax:99 },
+  },
+  {
+    id: "round-div",
+    emoji: "🔟",
+    name: "÷ Round Numbers",
+    tagline: "Divisors are multiples of 10",
+    override: { operations:{division:true,multiplication:false,addition:false,subtraction:false}, rounded:true },
+  },
+  {
+    id: "times-tables",
+    emoji: "📋",
+    name: "Times Tables",
+    tagline: "Multiply by 2–12",
+    override: { operations:{division:false,multiplication:true,addition:false,subtraction:false}, factorMax:12 },
+  },
+  {
+    id: "add-sprint",
+    emoji: "➕",
+    name: "Add Sprint",
+    tagline: "Back-to-back addition",
+    override: { operations:{division:false,multiplication:false,addition:true,subtraction:false} },
+  },
+  {
+    id: "sub-sprint",
+    emoji: "➖",
+    name: "Sub Sprint",
+    tagline: "Back-to-back subtraction",
+    override: { operations:{division:false,multiplication:false,addition:false,subtraction:true} },
+  },
+  {
+    id: "add-sub",
+    emoji: "⚡",
+    name: "Add & Subtract",
+    tagline: "Mixed + and − problems",
+    override: { operations:{division:false,multiplication:false,addition:true,subtraction:true} },
+  },
+  {
+    id: "full-mix",
+    emoji: "🔀",
+    name: "Full Mix",
+    tagline: "All four operations",
+    override: { operations:{division:true,multiplication:true,addition:true,subtraction:true} },
+  },
+];
 
 /* ============================================================
    High-score persistence
@@ -1195,14 +1290,61 @@ function SettingsPage({ initialSettings = {}, onBack }) {
 }
 
 /* ============================================================
+   Challenges Screen
+   ============================================================ */
+function ChallengesScreen({ onSelect, onBack, activeId }) {
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+        <button className="back-btn" onClick={onBack} aria-label="Back">‹</button>
+        <h2 style={{ margin:0, fontSize:22, fontWeight:900 }}>Challenges</h2>
+      </div>
+      <div className="challenge-grid">
+        {CHALLENGES.map((ch) => (
+          <button
+            key={ch.id}
+            className={"challenge-card" + (ch.id === activeId ? " ch-active" : "")}
+            onClick={() => onSelect(ch)}
+          >
+            <div className="ch-emoji">{ch.emoji}</div>
+            <div className="ch-name">{ch.name}</div>
+            <div className="ch-tagline">{ch.tagline}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    Home Screen  (vertically centred)
    ============================================================ */
-function HomeScreen({ onStart, onOpenSettings }) {
+function HomeScreen({ onStart, onOpenSettings, onOpenChallenges, activeChallenge, onContinueChallenge }) {
+  const activeCh = CHALLENGES.find((c) => c.id === activeChallenge);
   return (
     <div className="home-wrap">
       <div className="home-inner">
         <h1 className="title">➗ Math Blitz</h1>
         <div className="subtitle">Division speed drills — beat your best run</div>
+
+        {activeCh && (
+          <>
+            <button
+              className="start-btn"
+              style={{ background:"linear-gradient(180deg,#ffb347,#e09020)", boxShadow:"0 10px 24px rgba(255,179,71,0.35)", marginBottom:6 }}
+              onClick={onContinueChallenge}
+            >
+              {activeCh.emoji} {activeCh.name} →
+            </button>
+            <div className="footer-note" style={{ marginTop:-2, marginBottom:14 }}>Last played challenge — tap to go again</div>
+          </>
+        )}
+
+        <button className="settings-toggle" style={{ marginBottom:10 }} onClick={onOpenChallenges}>
+          <span>⚡ Challenges</span>
+          <span style={{ fontSize:18 }}>›</span>
+        </button>
+
         <PlayControls onStart={onStart} onOpenSettings={onOpenSettings} />
       </div>
     </div>
@@ -1474,7 +1616,7 @@ function SummaryStartBlitz({ onStart }) {
 /* ============================================================
    Summary Screen
    ============================================================ */
-function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, onReplay, onStart }) {
+function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, onReplay, onStart, activeChallenge, onContinueChallenge }) {
   const accuracy = result.totalDigits > 0
     ? Math.round((result.firstTryDigits / result.totalDigits) * 100)
     : 0;
@@ -1485,6 +1627,7 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
 
   const top5 = (highScores || []).slice(0, 5);
   const isNewBest = prevBest === null || result.score > prevBest;
+  const activeCh = CHALLENGES.find((c) => c.id === activeChallenge);
 
   return (
     <div>
@@ -1551,6 +1694,16 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
         </div>
       )}
 
+      {activeCh && (
+        <button
+          className="start-btn"
+          style={{ background:"linear-gradient(180deg,#ffb347,#e09020)", boxShadow:"0 10px 24px rgba(255,179,71,0.35)", marginBottom:10 }}
+          onClick={onContinueChallenge}
+        >
+          {activeCh.emoji} {activeCh.name} Again →
+        </button>
+      )}
+
       <SummaryStartBlitz onStart={onStart} />
 
       <button className="start-btn" style={{ marginBottom: 20, background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text)", boxShadow: "none" }} onClick={onReplay}>
@@ -1585,6 +1738,9 @@ function App() {
   const [highScores, setHighScores] = useState(() => loadHighScores());
   const [prevBest, setPrevBest] = useState(null);
   const [currentTs, setCurrentTs] = useState(null);
+  const [activeChallenge, setActiveChallenge] = useState(() => {
+    try { return localStorage.getItem("math-blitz-challenge") || null; } catch { return null; }
+  });
 
   const startGame = (finalSeed) => {
     setSeed(finalSeed);
@@ -1592,6 +1748,23 @@ function App() {
     setResult(null);
     setGameId((g) => g + 1);
     setScreen("game");
+  };
+
+  const startChallenge = (ch) => {
+    setActiveChallenge(ch.id);
+    try { localStorage.setItem("math-blitz-challenge", ch.id); } catch {}
+    const merged = { ...gameSettings, ...ch.override };
+    const finalSeed = randomSeed();
+    setSeed(finalSeed);
+    setRounds(buildRounds(finalSeed, merged));
+    setResult(null);
+    setGameId((g) => g + 1);
+    setScreen("game");
+  };
+
+  const continueChallenge = () => {
+    const ch = CHALLENGES.find((c) => c.id === activeChallenge);
+    if (ch) startChallenge(ch);
   };
 
   const finishGame = (res) => {
@@ -1638,6 +1811,9 @@ function App() {
   if (screen === "settings-page")
     return <SettingsPage initialSettings={gameSettings} onBack={closeSettings} />;
 
+  if (screen === "challenges")
+    return <ChallengesScreen onSelect={startChallenge} onBack={() => setScreen("home")} activeId={activeChallenge} />;
+
   if (screen === "game")
     return (
       <GameScreen
@@ -1660,10 +1836,20 @@ function App() {
         currentTs={currentTs}
         onReplay={replaySeed}
         onStart={startGame}
+        activeChallenge={activeChallenge}
+        onContinueChallenge={continueChallenge}
       />
     );
 
-  return <HomeScreen onStart={startGame} onOpenSettings={openSettings} />;
+  return (
+    <HomeScreen
+      onStart={startGame}
+      onOpenSettings={openSettings}
+      onOpenChallenges={() => setScreen("challenges")}
+      activeChallenge={activeChallenge}
+      onContinueChallenge={continueChallenge}
+    />
+  );
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);

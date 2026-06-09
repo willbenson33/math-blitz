@@ -1136,18 +1136,15 @@ function PlayControls({ onStart, onOpenSettings, initialSeed = "" }) {
       </div>
 
       <div className="panel">
-        <div className="field" style={{ marginBottom: 12 }}>
-          <span className="label">Custom seed (optional)</span>
-          <input
-            type="text"
-            placeholder="Leave blank for a random seed"
-            value={seed}
-            onChange={(e) => setSeed(e.target.value)}
-          />
-        </div>
-        <button className="start-btn" style={{ marginTop: 0 }} onClick={() => start()}>
+        <button className="start-btn" style={{ marginTop: 0, marginBottom: 12 }} onClick={() => start()}>
           Start Blitz →
         </button>
+        <input
+          type="text"
+          placeholder="Custom seed (optional)"
+          value={seed}
+          onChange={(e) => setSeed(e.target.value)}
+        />
       </div>
 
       <button className="settings-toggle" onClick={onOpenSettings}>
@@ -1597,18 +1594,15 @@ function SummaryStartBlitz({ onStart }) {
   const start = () => onStart(seed.trim() !== "" ? seed.trim() : randomSeed());
   return (
     <div className="panel" style={{ marginBottom: 14 }}>
-      <div className="field" style={{ marginBottom: 12 }}>
-        <span className="label">Custom seed (optional)</span>
-        <input
-          type="text"
-          placeholder="Leave blank for a random seed"
-          value={seed}
-          onChange={(e) => setSeed(e.target.value)}
-        />
-      </div>
-      <button className="start-btn" style={{ marginTop: 0 }} onClick={start}>
+      <button className="start-btn" style={{ marginTop: 0, marginBottom: 12 }} onClick={start}>
         Start Blitz →
       </button>
+      <input
+        type="text"
+        placeholder="Custom seed (optional)"
+        value={seed}
+        onChange={(e) => setSeed(e.target.value)}
+      />
     </div>
   );
 }

@@ -1384,6 +1384,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const roundPerfect = useRef(true);
   const advancing = useRef(false);
   const revealing = useRef(false); // true during the correct-answer flash after timeout
+  const wrongStreak = useRef(0);   // consecutive wrong taps at current position
 
   // aggregate stats across the whole run
   const stats = useRef({ firstTryDigits: 0, totalDigits: 0, perfectRounds: 0 });
@@ -1398,6 +1399,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     roundPerfect.current = true;
     advancing.current = false;
     revealing.current = false;
+    wrongStreak.current = 0;
     setLocked([]);
     setWrongFlash(null);
     setKeyFlash(null);
@@ -1487,6 +1489,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         if (firstTry) stats.current.firstTryDigits += 1;
         else roundPerfect.current = false;
       }
+      wrongStreak.current = 0;
       flashKey(d, "green");
       const next = [...locked, d];
       setLocked(next);
@@ -1507,9 +1510,26 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       // wrong digit: flash red, mark retry, then clear
       retriedPos.current.add(pos);
       roundPerfect.current = false;
+      wrongStreak.current += 1;
       flashKey(d, "red");
       setWrongFlash(d);
-      setTimeout(() => setWrongFlash(null), 300);
+      if (wrongStreak.current >= 3) {
+        // 3 strikes: reveal answer and move on, no points for this position
+        revealing.current = true;
+        setTimeout(() => {
+          setWrongFlash(null);
+          setRevealAnswer(true);
+          setTimeout(() => {
+            if (settings.teachMode) {
+              setTipText(getTip(problem));
+            } else {
+              finishRound(false);
+            }
+          }, 1200);
+        }, 300);
+      } else {
+        setTimeout(() => setWrongFlash(null), 300);
+      }
     }
   };
 

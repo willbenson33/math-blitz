@@ -106,22 +106,6 @@
     font-size: 14px;
   }
 
-  .home-guide {
-    list-style: decimal;
-    width: fit-content;
-    max-width: 320px;
-    margin: 14px auto 22px;
-    padding: 14px 18px 14px 38px;
-    border-radius: var(--radius);
-    background: var(--panel-2);
-    border: 1px solid rgba(255,255,255,0.06);
-    color: var(--muted);
-    font-size: 14px;
-    line-height: 1.6;
-  }
-  .home-guide li { padding-left: 4px; }
-  .home-guide li + li { margin-top: 8px; }
-
   /* ---------- Settings ---------- */
   .panel {
     background: linear-gradient(180deg, var(--panel), var(--bg-2));
@@ -953,11 +937,7 @@ function HomeScreen({ onStartMode, lastMode, theme, onToggleTheme }) {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center" }}>
     {themeBtn}
     <div style={{ width: "100%" }}>
-      <h1 className="title">⚡ Math Blitz ⚡</h1>
-      <ol className="home-guide">
-        <li>Solve math problems quickly</li>
-        <li><span aria-hidden="true">⏰</span> resets your timer once per game</li>
-      </ol>
+      <h1 className="title" style={{ marginBottom: 22 }}>⚡ Math Blitz ⚡</h1>
 
       <div className="panel">
         <span className="label">Game Mode</span>

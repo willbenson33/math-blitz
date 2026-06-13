@@ -202,6 +202,16 @@
   }
   input:focus { border-color: var(--accent); }
 
+  /* Shared slot: shows the fire streak, or the strike dots once a mistake is made. */
+  .streak-bar {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 2px 0 8px;
+  }
+  .streak-bar .strike-dots,
+  .streak-bar .fire-bar { margin: 0; }
   .strike-dots {
     display: flex;
     justify-content: center;
@@ -1621,16 +1631,20 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         </div>
       </div>
 
-      <div className="strike-dots" aria-label={`${wrongCount} of 3 strikes`}>
-        {[0, 1, 2].map((i) => (
-          <span key={i} className={"sdot" + (i < wrongCount ? " filled" : "")} />
-        ))}
-      </div>
-
-      <div className="fire-bar">
-        {Array.from({ length: perfectStreak }).map((_, i) => (
-          <span key={i} style={{ animationDelay: (i * 0.08) + "s" }}>🔥</span>
-        ))}
+      <div className="streak-bar">
+        {wrongCount > 0 ? (
+          <div className="strike-dots" aria-label={`${wrongCount} of 3 strikes`}>
+            {[0, 1, 2].map((i) => (
+              <span key={i} className={"sdot" + (i < wrongCount ? " filled" : "")} />
+            ))}
+          </div>
+        ) : (
+          <div className="fire-bar">
+            {Array.from({ length: perfectStreak }).map((_, i) => (
+              <span key={i} style={{ animationDelay: (i * 0.08) + "s" }}>🔥</span>
+            ))}
+          </div>
+        )}
       </div>
 
       {settings.timeLimit > 0 && (

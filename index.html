@@ -1571,6 +1571,21 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
               <button key={k} className={cls} onClick={() => handleDigit(k)}>{k}</button>
             );
           })}
+          <button className="key wide action" style={{ gridColumn: 1 }} onClick={() => { roundPerfect.current = false; setPaused(true); }}>⏸</button>
+          <button
+            className="key wide action"
+            style={{ gridColumn: 1, ...(timeRefreshUsed ? { opacity: 0.4, color: "var(--muted)", cursor: "default" } : {}) }}
+            disabled={timeRefreshUsed}
+            aria-label="Refresh time (one use per game)"
+            onClick={() => {
+              if (timeRefreshUsed) return;
+              if (advancing.current || revealing.current || paused) return;
+              setTimeRefreshUsed(true);
+              if (settings.timeLimit) setTimeLeft(settings.timeLimit);
+            }}
+          >
+            ⏰<span style={{ color: "var(--green)" }}>+</span>
+          </button>
           <button
             className="key wide action"
             style={{ gridColumn: 1, ...(timeRefreshUsed ? { opacity: 0.4, color: "var(--muted)", cursor: "default" } : {}) }}

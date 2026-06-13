@@ -411,9 +411,14 @@
     animation: strobeFade 320ms ease-out forwards;
   }
   .key.flash-red-soft::after { background: linear-gradient(180deg, #b8576a, #934150); }
-  .key.flash-green-soft::after { background: linear-gradient(180deg, var(--green), #18a661); }
+  /* Green (correct answer) is gentler than the red miss strobe. */
+  .key.flash-green-soft::after { background: linear-gradient(180deg, var(--green), #18a661); animation-name: strobeFadeSoft; }
   @keyframes strobeFade {
     0%   { opacity: 0.9; }
+    100% { opacity: 0; }
+  }
+  @keyframes strobeFadeSoft {
+    0%   { opacity: 0.4; }
     100% { opacity: 0; }
   }
   .key.wide { font-size: 22px; }

@@ -743,23 +743,25 @@ const GAME_MODES = [
 ];
 
 /* ============================================================
-   High-score persistence
-   Scores are stored as an array sorted high → low in localStorage.
+   High-score persistence  (scoped per game mode)
    Each record: { score, accuracy, perfectRounds, rounds, seed, date, ts }
    ============================================================ */
-const SCORES_KEY = "math-blitz-scores";
-const MAX_STORED = 20; // keep up to 20, display top 5
+const MAX_STORED = 20;
 
-function loadHighScores() {
-  try { return JSON.parse(localStorage.getItem(SCORES_KEY)) || []; }
+function scoresKey(modeId) {
+  return "math-blitz-scores-" + (modeId || "default");
+}
+
+function loadHighScores(modeId) {
+  try { return JSON.parse(localStorage.getItem(scoresKey(modeId))) || []; }
   catch { return []; }
 }
 
-function insertHighScore(record, existing) {
+function insertHighScore(record, existing, modeId) {
   const updated = [...existing, record]
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_STORED);
-  try { localStorage.setItem(SCORES_KEY, JSON.stringify(updated)); } catch {}
+  try { localStorage.setItem(scoresKey(modeId), JSON.stringify(updated)); } catch {}
   return updated;
 }
 
@@ -1185,92 +1187,11 @@ function getTip({ left, right, answer, opSymbol }) {
 }
 
 
-/* ============================================================
-   Settings Page  (full-page overlay with back button)
-   ============================================================ */
-function SettingsPage({ initialSettings = {}, onBack }) {
-  const [range, setRange] = useState(initialSettings.range ?? DEFAULT_SETTINGS.range);
-  const [rounds, setRounds] = useState(initialSettings.rounds ?? DEFAULT_SETTINGS.rounds);
-  const [timeLimit, setTimeLimit] = useState(initialSettings.timeLimit ?? DEFAULT_SETTINGS.timeLimit);
-  const [teachMode, setTeachMode] = useState(initialSettings.teachMode ?? DEFAULT_SETTINGS.teachMode);
-
-  // Operations and problem rules are now driven by game modes, not the
-  // Settings page. Carry through whatever was previously stored (or the
-  // defaults) so a custom game still has a complete configuration.
-  const save = () => onBack({
-    range,
-    rounds: Math.max(1, Math.min(99, parseInt(rounds, 10) || DEFAULT_SETTINGS.rounds)),
-    timeLimit,
-    rounded: initialSettings.rounded ?? DEFAULT_SETTINGS.rounded,
-    noZero: initialSettings.noZero ?? DEFAULT_SETTINGS.noZero,
-    parity: initialSettings.parity ?? DEFAULT_SETTINGS.parity,
-    operations: initialSettings.operations ?? { ...DEFAULT_SETTINGS.operations },
-    teachMode,
-  });
-
-  const Toggle = ({ on, set, label, hint }) => (
-    <div className="toggle-row">
-      <div>
-        <div className="tlabel">{label}</div>
-        {hint && <div className="thint">{hint}</div>}
-      </div>
-      <button className={"switch" + (on ? " on" : "")} onClick={() => set(!on)} aria-pressed={on} aria-label={label} />
-    </div>
-  );
-
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-        <button className="back-btn" onClick={save} aria-label="Back">‹</button>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900 }}>Settings</h2>
-      </div>
-
-      <div className="panel">
-        <div className="field">
-          <span className="label">Number range</span>
-          <div className="seg">
-            {[100, 500, 1000].map((r) => (
-              <button key={r} className={range === r ? "on" : ""} onClick={() => setRange(r)}>{r}</button>
-            ))}
-          </div>
-        </div>
-
-        <div className="row2">
-          <div className="field">
-            <span className="label">Rounds</span>
-            <input type="number" min="1" max="99" value={rounds} onChange={(e) => setRounds(e.target.value)} />
-          </div>
-          <div className="field">
-            <span className="label">Time / round</span>
-            <div className="seg">
-              {[{ v: 0, t: "∞" }, { v: 5, t: "5s" }, { v: 10, t: "10s" }, { v: 20, t: "20s" }].map((o) => (
-                <button key={o.v} className={timeLimit === o.v ? "on" : ""} onClick={() => setTimeLimit(o.v)} style={{ minWidth: 0, padding: "12px 4px" }}>
-                  {o.t}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="panel">
-        <Toggle
-          on={teachMode}
-          set={setTeachMode}
-          label="Teach Me Mode"
-          hint="After a missed question, shows a mental math shortcut for next time"
-        />
-      </div>
-
-      <button className="start-btn" onClick={save}>Done</button>
-    </div>
-  );
-}
 
 /* ============================================================
    Home Screen
    ============================================================ */
-function HomeScreen({ onStartMode, onOpenSettings, lastMode }) {
+function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode }) {
   const [selectedId, setSelectedId] = useState(
     () => (GAME_MODES.some((m) => m.id === lastMode) ? lastMode : GAME_MODES[0].id)
   );
@@ -1278,7 +1199,8 @@ function HomeScreen({ onStartMode, onOpenSettings, lastMode }) {
   const selectedMode = GAME_MODES.find((m) => m.id === selectedId) || GAME_MODES[0];
 
   return (
-    <div>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center" }}>
+    <div style={{ width: "100%" }}>
       <h1 className="title">➗ Math Blitz</h1>
       <div className="subtitle">Mental math speed drills — beat your best run</div>
 
@@ -1307,14 +1229,18 @@ function HomeScreen({ onStartMode, onOpenSettings, lastMode }) {
           style={{ marginTop: 12 }}
           onClick={() => onStartMode(selectedMode, seed.trim() || null)}
         >
-          {selectedMode.emoji} Start {selectedMode.name} →
+          Start →
         </button>
       </div>
 
-      <button className="settings-toggle" onClick={onOpenSettings}>
-        <span>⚙️ Settings</span>
-        <span style={{ fontSize: 18 }}>›</span>
-      </button>
+      <div className="toggle-row" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "var(--radius)", padding: "14px 18px" }}>
+        <div>
+          <div className="tlabel">💡 Teach Me Mode</div>
+          <div className="thint">Shows a shortcut tip after each missed question</div>
+        </div>
+        <button className={"switch" + (teachMode ? " on" : "")} onClick={onToggleTeachMode} aria-pressed={teachMode} aria-label="Teach Me Mode" />
+      </div>
+    </div>
     </div>
   );
 }
@@ -1572,8 +1498,11 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         <div style={{ textAlign: "center", padding: "32px 0" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>⏸</div>
           <div style={{ color: "var(--muted)", fontSize: 15, marginBottom: 24 }}>Paused — no points for this question</div>
-          <button className="start-btn" onClick={() => { roundPerfect.current = false; setPaused(false); }}>
+          <button className="start-btn" style={{ marginBottom: 12 }} onClick={() => { roundPerfect.current = false; if (settings.timeLimit) setTimeLeft(settings.timeLimit); setPaused(false); }}>
             Resume →
+          </button>
+          <button className="start-btn" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--muted)", boxShadow: "none" }} onClick={() => onFinish(null)}>
+            Quit
           </button>
         </div>
       ) : (
@@ -1602,7 +1531,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 /* ============================================================
    Summary Screen
    ============================================================ */
-function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, lastMode, onAgain }) {
+function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, lastMode, onAgain, onQuit }) {
   const accuracy = result.totalDigits > 0
     ? Math.round((result.firstTryDigits / result.totalDigits) * 100)
     : 0;
@@ -1678,8 +1607,11 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
         </div>
       )}
 
-      <button className="start-btn" style={{ marginTop: 4, marginBottom: 20 }} onClick={onAgain}>
+      <button className="start-btn" style={{ marginTop: 4, marginBottom: 10 }} onClick={onAgain}>
         {activeMode ? `${activeMode.emoji} ${activeMode.name} Again →` : "Play Again →"}
+      </button>
+      <button className="start-btn" style={{ marginBottom: 20, background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--muted)", boxShadow: "none" }} onClick={onQuit}>
+        Quit
       </button>
     </div>
   );
@@ -1689,24 +1621,17 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
    App
    ============================================================ */
 function App() {
-  // screen: "home" | "settings-page" | "game" | "summary"
+  // screen: "home" | "game" | "summary"
   const [screen, setScreen] = useState("home");
-  const [prevScreen, setPrevScreen] = useState("home"); // where settings was opened from
   const [seed, setSeed] = useState("");
-  // gameSettings = the persisted custom configuration edited on the Settings
-  // page. playSettings = the settings the *current* run is using (a game
-  // mode's own bundle, or gameSettings for a custom run).
-  const [gameSettings, setGameSettings] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("math-blitz-settings"));
-      return saved ? { ...DEFAULT_SETTINGS, ...saved, operations: { ...DEFAULT_SETTINGS.operations, ...(saved.operations ?? {}) } } : DEFAULT_SETTINGS;
-    } catch { return DEFAULT_SETTINGS; }
+  const [teachMode, setTeachMode] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("math-blitz-teach")) ?? false; } catch { return false; }
   });
   const [playSettings, setPlaySettings] = useState(DEFAULT_SETTINGS);
   const [rounds, setRounds] = useState([]);
   const [result, setResult] = useState(null);
   const [gameId, setGameId] = useState(0);
-  const [highScores, setHighScores] = useState(() => loadHighScores());
+  const [highScores, setHighScores] = useState([]);
   const [prevBest, setPrevBest] = useState(null);
   const [currentTs, setCurrentTs] = useState(null);
   const [lastMode, setLastMode] = useState(() => {
@@ -1722,10 +1647,18 @@ function App() {
     setScreen("game");
   };
 
+  const toggleTeachMode = () => {
+    setTeachMode((v) => {
+      const next = !v;
+      try { localStorage.setItem("math-blitz-teach", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
   const startMode = (mode, seedOverride = null) => {
     setLastMode(mode.id);
     try { localStorage.setItem("math-blitz-mode", mode.id); } catch {}
-    launch(seedOverride ?? randomSeed(), mode.settings);
+    launch(seedOverride ?? randomSeed(), { ...mode.settings, teachMode });
   };
 
   const playAgain = () => {
@@ -1736,7 +1669,7 @@ function App() {
 
   const finishGame = (res) => {
     if (res === null) { setScreen("home"); return; }
-    const existing = loadHighScores();
+    const existing = loadHighScores(lastMode);
     const best = existing.length > 0 ? existing[0].score : null;
     const ts = Date.now();
     const acc = res.totalDigits > 0 ? Math.round((res.firstTryDigits / res.totalDigits) * 100) : 0;
@@ -1749,27 +1682,13 @@ function App() {
       date: new Date().toLocaleDateString(),
       ts,
     };
-    const updated = insertHighScore(record, existing);
+    const updated = insertHighScore(record, existing, lastMode);
     setHighScores(updated);
     setPrevBest(best);
     setCurrentTs(ts);
     setResult(res);
     setScreen("summary");
   };
-
-  const openSettings = () => {
-    setPrevScreen(screen);
-    setScreen("settings-page");
-  };
-
-  const closeSettings = (newSettings) => {
-    setGameSettings(newSettings);
-    try { localStorage.setItem("math-blitz-settings", JSON.stringify(newSettings)); } catch {}
-    setScreen(prevScreen);
-  };
-
-  if (screen === "settings-page")
-    return <SettingsPage initialSettings={gameSettings} onBack={closeSettings} />;
 
   if (screen === "game")
     return (
@@ -1793,14 +1712,16 @@ function App() {
         currentTs={currentTs}
         lastMode={lastMode}
         onAgain={playAgain}
+        onQuit={() => setScreen("home")}
       />
     );
 
   return (
     <HomeScreen
       onStartMode={startMode}
-      onOpenSettings={openSettings}
       lastMode={lastMode}
+      teachMode={teachMode}
+      onToggleTeachMode={toggleTeachMode}
     />
   );
 }

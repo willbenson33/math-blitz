@@ -642,6 +642,10 @@ function randomSeed() {
    ============================================================ */
 
 function passesFilters(left, right, answer, s, op) {
+  // Hard mode: drop any problem whose operands are multiples of 10. Those round
+  // numbers collapse to trivial place-value shifts (×10, ÷10), so removing them
+  // forces genuine mental arithmetic.
+  if (s.hardMode && (left % 10 === 0 || right % 10 === 0)) return false;
   if (s.noZero && String(answer).indexOf("0") !== -1) return false;
   if (s.parity === "odd"  && (left % 2 === 0 || right % 2 === 0)) return false;
   if (s.parity === "even" && (left % 2 !== 0 || right % 2 !== 0)) return false;
@@ -779,6 +783,7 @@ const DEFAULT_SETTINGS = {
   parity: "any",
   operations: { division: true, multiplication: false, addition: false, subtraction: false },
   teachMode: false,
+  hardMode: false,
 };
 
 // Build a full settings object from the defaults plus a mode's specifics.
@@ -1287,7 +1292,7 @@ function getTip({ left, right, answer, opSymbol }) {
 /* ============================================================
    Home Screen
    ============================================================ */
-function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode, theme, onToggleTheme }) {
+function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode, hardMode, onToggleHardMode, theme, onToggleTheme }) {
   const [selectedId, setSelectedId] = useState(
     () => (GAME_MODES.some((m) => m.id === lastMode) ? lastMode : GAME_MODES[0].id)
   );
@@ -1370,6 +1375,14 @@ function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode, theme
           <div className="thint">Show mental math tips on misses</div>
         </div>
         <button className={"switch" + (teachMode ? " on" : "")} onClick={onToggleTeachMode} aria-pressed={teachMode} aria-label="Tips" />
+      </div>
+
+      <div className="toggle-row" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "var(--radius)", padding: "14px 18px", marginTop: 10 }}>
+        <div>
+          <div className="tlabel">🔥 Hard Mode</div>
+          <div className="thint">No multiples of 10 — no easy place-value shortcuts</div>
+        </div>
+        <button className={"switch" + (hardMode ? " on" : "")} onClick={onToggleHardMode} aria-pressed={hardMode} aria-label="Hard Mode" />
       </div>
     </div>
     </div>
@@ -1786,6 +1799,9 @@ function App() {
   const [teachMode, setTeachMode] = useState(() => {
     try { return JSON.parse(localStorage.getItem("math-blitz-teach")) ?? false; } catch { return false; }
   });
+  const [hardMode, setHardMode] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("math-blitz-hard")) ?? false; } catch { return false; }
+  });
   const [playSettings, setPlaySettings] = useState(DEFAULT_SETTINGS);
   const [rounds, setRounds] = useState([]);
   const [result, setResult] = useState(null);
@@ -1829,10 +1845,18 @@ function App() {
     });
   };
 
+  const toggleHardMode = () => {
+    setHardMode((v) => {
+      const next = !v;
+      try { localStorage.setItem("math-blitz-hard", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
   const startMode = (mode, seedOverride = null) => {
     setLastMode(mode.id);
     try { localStorage.setItem("math-blitz-mode", mode.id); } catch {}
-    launch(seedOverride ?? randomSeed(), { ...mode.settings, teachMode });
+    launch(seedOverride ?? randomSeed(), { ...mode.settings, teachMode, hardMode });
   };
 
   const playAgain = () => {
@@ -1896,6 +1920,8 @@ function App() {
       lastMode={lastMode}
       teachMode={teachMode}
       onToggleTeachMode={toggleTeachMode}
+      hardMode={hardMode}
+      onToggleHardMode={toggleHardMode}
       theme={theme}
       onToggleTheme={toggleTheme}
     />

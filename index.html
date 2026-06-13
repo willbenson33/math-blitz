@@ -680,18 +680,31 @@ function passesFilters(left, right, answer, s, op) {
 
 function generateDecimalDivision(rng, s) {
   const max = s.range;
-  // Divisors whose only prime factors are 2 and 5 produce quotients that
-  // terminate at one decimal place (e.g. ÷2 → .5, ÷5 → .2). The reject tests
-  // below keep every answer to a single decimal digit AND throw out any that
-  // divides evenly, so this mode only ever shows true decimal quotients.
-  const divisors = [2, 4, 5, 8, 10];
+  // Divisors with only 2/5 as prime factors give quotients that terminate. For
+  // each one we list the tenths (.1–.9) that keep the answer to a single decimal
+  // place, then build the problem directly from a divisor + tenth + whole part.
+  // Constructing it (rather than rejecting random dividends) means every divisor
+  // shows up evenly instead of skewing toward 10.
+  const options = [
+    { div: 2,  tenths: [5] },
+    { div: 4,  tenths: [5] },
+    { div: 5,  tenths: [2, 4, 6, 8] },
+    { div: 8,  tenths: [5] },
+    { div: 10, tenths: [1, 2, 3, 4, 5, 6, 7, 8, 9] },
+    { div: 20, tenths: [1, 2, 3, 4, 5, 6, 7, 8, 9] },
+    { div: 25, tenths: [2, 4, 6, 8] },
+    { div: 50, tenths: [1, 2, 3, 4, 5, 6, 7, 8, 9] },
+  ];
   for (let i = 0; i < 6000; i++) {
-    const right = divisors[Math.floor(rng() * divisors.length)];
-    const left = randInt(rng, right, max);
-    if (left % right === 0) continue;                   // skip whole-number quotients
-    if ((left * 10) % right !== 0) continue;            // must terminate at 1 decimal place
-    const answer = Math.round((left * 10) / right) / 10;
-    if (answer < 1) continue;
+    const opt = options[Math.floor(rng() * options.length)];
+    const right = opt.div;
+    const tenth = opt.tenths[Math.floor(rng() * opt.tenths.length)];
+    const maxWhole = Math.floor(max / right);
+    if (maxWhole < 1) continue;
+    const whole = randInt(rng, 1, maxWhole);
+    const left = right * whole + (right * tenth) / 10; // integer: tenth keeps it whole
+    if (left > max) continue;
+    const answer = left / right;                       // = whole.tenth, never a round number
     if (passesFilters(left, right, answer, s, "division"))
       return { left, opSymbol: "÷", right, answer };
   }

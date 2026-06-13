@@ -720,14 +720,25 @@ function generateTips(rng, s) {
 }
 
 function generatePercent(rng, s) {
-  // "P% of N" where N is a multiple of 100, so the answer is always an exact
-  // whole number. The percent range comes from the mode (e.g. 1–99 or 1–999).
+  // Convert a fraction to a percent: show numerator/denominator, type the whole
+  // percent it equals. Denominators are chosen so the percent is a whole number;
+  // the percent range comes from the mode (1–99 or 1–999). In the larger range
+  // the numerator is frequently bigger than the denominator (percent > 100%).
   const pctMin = s.percentMin ?? 1;
   const pctMax = s.percentMax ?? 99;
-  const pct = randInt(rng, pctMin, pctMax);
-  const base = randInt(rng, 1, 10) * 100;        // 100 .. 1000
-  const answer = (pct * base) / 100;             // exact: base is a multiple of 100
-  return { left: pct + "%", opSymbol: "of", right: base, answer };
+  const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
+  const denoms = [4, 5, 8, 10, 20, 25, 50, 100];
+  for (let i = 0; i < 6000; i++) {
+    const den = denoms[Math.floor(rng() * denoms.length)];
+    const step = 100 / gcd(100, den);              // percent must be a multiple of this
+    const lo = Math.ceil(pctMin / step), hi = Math.floor(pctMax / step);
+    if (hi < lo) continue;
+    const percent = randInt(rng, lo, hi) * step;
+    const num = (percent * den) / 100;             // whole numerator by construction
+    if (num < 1) continue;
+    return { left: num, opSymbol: "/", right: den, answer: percent };
+  }
+  return { left: 3, opSymbol: "/", right: 4, answer: 75 };
 }
 
 function generateMultiplication(rng, s) {
@@ -883,7 +894,7 @@ const GAME_MODES = [
     id: "percent-99",
     emoji: "％",
     name: "Percents (1–99%)",
-    tagline: "Find 1–99% of a number",
+    tagline: "Fraction → percent",
     settings: modeSettings({
       operations: { division: false, multiplication: true, addition: false, subtraction: false },
       percent: true, percentMin: 1, percentMax: 99,
@@ -893,7 +904,7 @@ const GAME_MODES = [
     id: "percent-999",
     emoji: "💯",
     name: "Percents (1–999%)",
-    tagline: "Find 1–999% of a number",
+    tagline: "Fraction → percent, incl. improper",
     settings: modeSettings({
       operations: { division: false, multiplication: true, addition: false, subtraction: false },
       percent: true, percentMin: 1, percentMax: 999,

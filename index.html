@@ -399,6 +399,7 @@
   }
   .key.flash-green { background: linear-gradient(180deg, var(--green), #18a661); border-color: var(--green); }
   .key.flash-red { background: linear-gradient(180deg, var(--red), #d6324f); border-color: var(--red); }
+  .key.flash-red-soft { background: linear-gradient(180deg, #b8576a, #934150); border-color: #b8576a; }
   .key.wide { font-size: 22px; }
   .key.action { color: var(--amber); }
 
@@ -413,6 +414,7 @@
   }
   :root[data-theme="light"] .key.flash-green { background: linear-gradient(180deg, var(--green), #18a661); }
   :root[data-theme="light"] .key.flash-red { background: linear-gradient(180deg, var(--red), #d6324f); }
+  :root[data-theme="light"] .key.flash-red-soft { background: linear-gradient(180deg, #e0879a, #cf6b7e); border-color: #e0879a; }
 
   /* ---------- Summary ---------- */
   .big-score {
@@ -1215,7 +1217,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         <div className="numpad" style={revealAnswer ? { opacity: 0.35, pointerEvents: "none" } : undefined}>
           {keys.map((k) => {
             let cls = "key";
-            if (wrongPulse) cls += " flash-red";
+            if (wrongPulse) cls += " flash-red-soft";
             else if (keyFlash && keyFlash.digit === k) cls += keyFlash.kind === "green" ? " flash-green" : " flash-red";
             return (
               <button key={k} className={cls} onClick={() => handleDigit(k)}>{k}</button>
@@ -1236,7 +1238,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
             ⏰<span style={{ color: "var(--green)" }}>+</span>
           </button>
           <button
-            className={"key" + (wrongPulse ? " flash-red" : keyFlash && keyFlash.digit === "0" ? (keyFlash.kind === "green" ? " flash-green" : " flash-red") : "")}
+            className={"key" + (wrongPulse ? " flash-red-soft" : keyFlash && keyFlash.digit === "0" ? (keyFlash.kind === "green" ? " flash-green" : " flash-red") : "")}
             style={{ gridColumn: 2 }}
             onClick={() => handleDigit("0")}
           >

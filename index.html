@@ -441,21 +441,21 @@
   .lb-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 11px 14px;
-    border-radius: 12px;
+    gap: 10px;
+    padding: 7px 12px;
+    border-radius: 10px;
     background: var(--panel-2);
     border: 1px solid rgba(255,255,255,0.06);
-    margin-bottom: 8px;
+    margin-bottom: 5px;
   }
   .lb-row:last-child { margin-bottom: 0; }
   .lb-row.lb-current {
     border-color: var(--accent);
     background: rgba(91,140,255,0.12);
   }
-  .lb-rank { font-size: 14px; font-weight: 900; color: var(--muted); width: 20px; text-align: center; flex-shrink: 0; }
-  .lb-score { font-size: 20px; font-weight: 900; flex: 1; }
-  .lb-meta { font-size: 12px; color: var(--muted); text-align: right; line-height: 1.5; }
+  .lb-rank { font-size: 12px; font-weight: 900; color: var(--muted); width: 16px; text-align: center; flex-shrink: 0; }
+  .lb-score { font-size: 17px; font-weight: 900; flex: 1; }
+  .lb-meta { font-size: 11px; color: var(--muted); text-align: right; }
 
   /* ---------- Challenges ---------- */
   .challenge-grid {
@@ -1184,29 +1184,6 @@ function getTip({ left, right, answer, opSymbol }) {
   ]);
 }
 
-/* ============================================================
-   CustomGamePanel — start a custom run (current Settings) with an
-   optional seed. Used on both the Home screen and the Summary screen.
-   ============================================================ */
-function CustomGamePanel({ onStart }) {
-  const [seed, setSeed] = useState("");
-
-  const start = () => onStart(seed.trim() !== "" ? seed.trim() : randomSeed());
-
-  return (
-    <div className="panel">
-      <button className="start-btn" style={{ marginTop: 0, marginBottom: 12 }} onClick={start}>
-        Start Blitz →
-      </button>
-      <input
-        type="text"
-        placeholder="Custom seed (optional)"
-        value={seed}
-        onChange={(e) => setSeed(e.target.value)}
-      />
-    </div>
-  );
-}
 
 /* ============================================================
    Settings Page  (full-page overlay with back button)
@@ -1292,16 +1269,12 @@ function SettingsPage({ initialSettings = {}, onBack }) {
 
 /* ============================================================
    Home Screen
-   ------------------------------------------------------------
-   Game modes are the primary way to play and live right on the home
-   screen. A single "Custom Game" panel covers a free-form run using
-   whatever is configured in Settings.
    ============================================================ */
-function HomeScreen({ onStartMode, onStartCustom, onOpenSettings, lastMode }) {
-  // Default the dropdown to the last mode played, otherwise the first mode.
+function HomeScreen({ onStartMode, onOpenSettings, lastMode }) {
   const [selectedId, setSelectedId] = useState(
     () => (GAME_MODES.some((m) => m.id === lastMode) ? lastMode : GAME_MODES[0].id)
   );
+  const [seed, setSeed] = useState("");
   const selectedMode = GAME_MODES.find((m) => m.id === selectedId) || GAME_MODES[0];
 
   return (
@@ -1322,17 +1295,21 @@ function HomeScreen({ onStartMode, onStartCustom, onOpenSettings, lastMode }) {
             </option>
           ))}
         </select>
+        <input
+          type="text"
+          placeholder="Seed (optional — leave blank for random)"
+          value={seed}
+          onChange={(e) => setSeed(e.target.value)}
+          style={{ marginTop: 12 }}
+        />
         <button
           className="start-btn"
-          style={{ marginTop: 14 }}
-          onClick={() => onStartMode(selectedMode)}
+          style={{ marginTop: 12 }}
+          onClick={() => onStartMode(selectedMode, seed.trim() || null)}
         >
           {selectedMode.emoji} Start {selectedMode.name} →
         </button>
       </div>
-
-      <span className="label" style={{ display: "block", margin: "20px 0 10px" }}>Custom Game</span>
-      <CustomGamePanel onStart={onStartCustom} />
 
       <button className="settings-toggle" onClick={onOpenSettings}>
         <span>⚙️ Settings</span>
@@ -1357,6 +1334,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [revealAnswer, setRevealAnswer] = useState(false);
   const [tipText, setTipText] = useState(null);
   const [timeBonusDisplay, setTimeBonusDisplay] = useState(null);
+  const [paused, setPaused] = useState(false);
 
   // per-round bookkeeping (refs so timers/handlers see latest)
   const retriedPos = useRef(new Set());   // positions that needed a retry
@@ -1427,6 +1405,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   // timer
   useEffect(() => {
     if (!settings.timeLimit) return;
+    if (paused) return;
     if (advancing.current) return;
     if (revealing.current) return;
     if (timeLeft <= 0) {
@@ -1453,6 +1432,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   };
 
   const handleDigit = (d) => {
+    if (paused) return;
     if (advancing.current) return;
     if (revealing.current) return;
     const expected = answerStr[pos];
@@ -1588,6 +1568,14 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
             Got it →
           </button>
         </div>
+      ) : paused ? (
+        <div style={{ textAlign: "center", padding: "32px 0" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>⏸</div>
+          <div style={{ color: "var(--muted)", fontSize: 15, marginBottom: 24 }}>Paused — no points for this question</div>
+          <button className="start-btn" onClick={() => { roundPerfect.current = false; setPaused(false); }}>
+            Resume →
+          </button>
+        </div>
       ) : (
         <div className="numpad" style={revealAnswer ? { opacity: 0.35, pointerEvents: "none" } : undefined}>
           {keys.map((k) => {
@@ -1604,7 +1592,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
           >
             0
           </button>
-          <button className="key wide action" onClick={() => onFinish(null)}>Quit</button>
+          <button className="key wide action" onClick={() => { roundPerfect.current = false; setPaused(true); }}>⏸</button>
         </div>
       )}
     </div>
@@ -1614,7 +1602,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 /* ============================================================
    Summary Screen
    ============================================================ */
-function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, onReplay, onStart, lastMode, onContinueMode }) {
+function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, lastMode, onAgain }) {
   const accuracy = result.totalDigits > 0
     ? Math.round((result.firstTryDigits / result.totalDigits) * 100)
     : 0;
@@ -1678,35 +1666,20 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
       )}
 
       {top5.length > 0 && (
-        <div className="panel" style={{ padding: "14px 14px 6px", marginBottom: 20 }}>
-          <span className="label" style={{ display: "block", marginBottom: 10 }}>Top Scores</span>
+        <div className="panel" style={{ padding: "12px 12px 8px", marginBottom: 16 }}>
+          <span className="label" style={{ display: "block", marginBottom: 8 }}>Top Scores</span>
           {top5.map((entry, i) => (
             <div key={entry.ts} className={"lb-row" + (entry.ts === currentTs ? " lb-current" : "")}>
               <div className="lb-rank">{i + 1}</div>
               <div className="lb-score">{entry.score}</div>
-              <div className="lb-meta">
-                {entry.accuracy}% acc<br />{entry.date}
-              </div>
+              <div className="lb-meta">{entry.accuracy}% acc · {entry.date}</div>
             </div>
           ))}
         </div>
       )}
 
-      {activeMode && (
-        <button
-          className="start-btn"
-          style={{ background:"linear-gradient(180deg,#ffb347,#e09020)", boxShadow:"0 10px 24px rgba(255,179,71,0.35)", marginBottom:10 }}
-          onClick={onContinueMode}
-        >
-          {activeMode.emoji} {activeMode.name} Again →
-        </button>
-      )}
-
-      <span className="label" style={{ display: "block", margin: "4px 0 10px" }}>Custom Game</span>
-      <CustomGamePanel onStart={onStart} />
-
-      <button className="start-btn" style={{ marginTop: 14, marginBottom: 20, background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text)", boxShadow: "none" }} onClick={onReplay}>
-        ↻ Replay this seed
+      <button className="start-btn" style={{ marginTop: 4, marginBottom: 20 }} onClick={onAgain}>
+        {activeMode ? `${activeMode.emoji} ${activeMode.name} Again →` : "Play Again →"}
       </button>
     </div>
   );
@@ -1749,22 +1722,16 @@ function App() {
     setScreen("game");
   };
 
-  // Custom run: uses the persisted Settings, not tied to any game mode.
-  const startGame = (finalSeed) => {
-    setLastMode(null);
-    launch(finalSeed, gameSettings);
-  };
-
-  // Game mode: uses the mode's own self-contained settings bundle.
-  const startMode = (mode) => {
+  const startMode = (mode, seedOverride = null) => {
     setLastMode(mode.id);
     try { localStorage.setItem("math-blitz-mode", mode.id); } catch {}
-    launch(randomSeed(), mode.settings);
+    launch(seedOverride ?? randomSeed(), mode.settings);
   };
 
-  const continueMode = () => {
+  const playAgain = () => {
     const mode = GAME_MODES.find((m) => m.id === lastMode);
     if (mode) startMode(mode);
+    else setScreen("home");
   };
 
   const finishGame = (res) => {
@@ -1788,13 +1755,6 @@ function App() {
     setCurrentTs(ts);
     setResult(res);
     setScreen("summary");
-  };
-
-  const replaySeed = () => {
-    setRounds(buildRounds(seed, playSettings));
-    setResult(null);
-    setGameId((g) => g + 1);
-    setScreen("game");
   };
 
   const openSettings = () => {
@@ -1831,17 +1791,14 @@ function App() {
         highScores={highScores}
         prevBest={prevBest}
         currentTs={currentTs}
-        onReplay={replaySeed}
-        onStart={startGame}
         lastMode={lastMode}
-        onContinueMode={continueMode}
+        onAgain={playAgain}
       />
     );
 
   return (
     <HomeScreen
       onStartMode={startMode}
-      onStartCustom={startGame}
       onOpenSettings={openSettings}
       lastMode={lastMode}
     />

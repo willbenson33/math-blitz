@@ -1235,10 +1235,10 @@ function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode }) {
 
       <div className="toggle-row" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "var(--radius)", padding: "14px 18px" }}>
         <div>
-          <div className="tlabel">💡 Teach Me Mode</div>
+          <div className="tlabel">💡 Show Tips</div>
           <div className="thint">Shows a shortcut tip after each missed question</div>
         </div>
-        <button className={"switch" + (teachMode ? " on" : "")} onClick={onToggleTeachMode} aria-pressed={teachMode} aria-label="Teach Me Mode" />
+        <button className={"switch" + (teachMode ? " on" : "")} onClick={onToggleTeachMode} aria-pressed={teachMode} aria-label="Show Tips" />
       </div>
     </div>
     </div>

@@ -202,6 +202,16 @@
   }
   input:focus { border-color: var(--accent); }
 
+  /* Shared slot: shows the fire streak, or the strike dots once a mistake is made. */
+  .streak-bar {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 2px 0 8px;
+  }
+  .streak-bar .strike-dots,
+  .streak-bar .fire-bar { margin: 0; }
   .strike-dots {
     display: flex;
     justify-content: center;
@@ -454,24 +464,6 @@
 
   .footer-note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
 
-  .tip-card {
-    background: linear-gradient(180deg, #1e2a42, #17202f);
-    border: 1px solid rgba(91,140,255,0.35);
-    border-radius: var(--radius);
-    padding: 22px 20px;
-    box-shadow: 0 0 0 3px rgba(91,140,255,0.12), var(--shadow);
-    animation: tipIn .3s ease;
-  }
-  @keyframes tipIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-  .tip-icon { font-size: 30px; text-align: center; margin-bottom: 10px; }
-  .tip-text { font-size: 17px; line-height: 1.55; color: var(--text); font-weight: 500; }
-
-  :root[data-theme="light"] .tip-card {
-    background: linear-gradient(180deg, #eaf0ff, #dde7fb);
-    border-color: rgba(63,111,224,0.35);
-    box-shadow: 0 0 0 3px rgba(63,111,224,0.12), var(--shadow);
-  }
-
   .settings-toggle {
     display: flex;
     align-items: center;
@@ -539,8 +531,20 @@
     background: rgba(91,140,255,0.12);
   }
   .lb-rank { font-size: 12px; font-weight: 900; color: var(--muted); width: 16px; text-align: center; flex-shrink: 0; }
-  .lb-score { font-size: 17px; font-weight: 900; flex: 1; }
-  .lb-meta { font-size: 11px; color: var(--muted); text-align: right; }
+  .lb-main { flex: 1; min-width: 0; }
+  .lb-score-line { display: flex; align-items: center; gap: 8px; }
+  .lb-score { font-size: 17px; font-weight: 900; }
+  .lb-badge {
+    font-size: 10px; font-weight: 800;
+    color: var(--amber);
+    background: rgba(255,179,71,0.14);
+    border: 1px solid rgba(255,179,71,0.4);
+    border-radius: 6px;
+    padding: 1px 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .lb-stats { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
   /* ---------- Challenges ---------- */
   .challenge-grid {
@@ -782,7 +786,6 @@ const DEFAULT_SETTINGS = {
   noZero: false,
   parity: "any",
   operations: { division: true, multiplication: false, addition: false, subtraction: false },
-  teachMode: false,
   hardMode: false,
 };
 
@@ -844,25 +847,26 @@ const GAME_MODES = [
 ];
 
 /* ============================================================
-   High-score persistence  (scoped per game mode)
+   High-score persistence  (scoped per game mode AND difficulty)
+   Hard mode keeps its own leaderboard, separate from normal runs.
    Each record: { score, accuracy, perfectRounds, rounds, seed, date, ts }
    ============================================================ */
 const MAX_STORED = 20;
 
-function scoresKey(modeId) {
-  return "math-blitz-scores-" + (modeId || "default");
+function scoresKey(modeId, hard) {
+  return "math-blitz-scores-" + (modeId || "default") + (hard ? "-hard" : "");
 }
 
-function loadHighScores(modeId) {
-  try { return JSON.parse(localStorage.getItem(scoresKey(modeId))) || []; }
+function loadHighScores(modeId, hard) {
+  try { return JSON.parse(localStorage.getItem(scoresKey(modeId, hard))) || []; }
   catch { return []; }
 }
 
-function insertHighScore(record, existing, modeId) {
+function insertHighScore(record, existing, modeId, hard) {
   const updated = [...existing, record]
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_STORED);
-  try { localStorage.setItem(scoresKey(modeId), JSON.stringify(updated)); } catch {}
+  try { localStorage.setItem(scoresKey(modeId, hard), JSON.stringify(updated)); } catch {}
   return updated;
 }
 
@@ -870,429 +874,9 @@ function insertHighScore(record, existing, modeId) {
 const basePoints = (pos) => (pos + 1) * 5;
 
 /* ============================================================
-   Mental-math tips  (Teach Me Mode)
-   Returns a contextual tip for the given problem.
-   Multiple variants per pattern — chosen by problem hash for variety.
-   ============================================================ */
-function getTip({ left, right, answer, opSymbol }) {
-  // deterministic pick from an array using the problem numbers as a seed
-  const pick = (arr) => arr[(left * 31 + right * 17 + answer * 7) % arr.length];
-
-  const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
-  const trailingZeros = (x) => { let c=0; while(x%10===0){c++;x=x/10;} return c; };
-  // chunk: find the largest easy multiple of d that fits in n (e.g. 100×d, 10×d, 5×d)
-  const chunkTip = (dividend, divisor, quot) => {
-    for (const mult of [100,50,25,20,10,5,2]) {
-      const chunk = mult * divisor;
-      if (chunk < dividend && dividend - chunk > 0 && (dividend - chunk) % divisor === 0) {
-        const rem = dividend - chunk, remQ = rem / divisor;
-        return `Chunking: ${mult}×${divisor}=${chunk} fits inside ${dividend}. Remainder ${rem}÷${divisor}=${remQ}. Total: ${mult}+${remQ}=${quot}.`;
-      }
-    }
-    return null;
-  };
-
-  // ─── DIVISION ─────────────────────────────────────────────
-  if (opSymbol === "÷") {
-    const digitSum = (x) => String(x).split("").reduce((s, d) => s + +d, 0);
-
-    // Cancel trailing zeros first if both share them
-    const tzL = trailingZeros(left), tzR = trailingZeros(right);
-    if (tzL > 0 && tzR > 0) {
-      const cancel = Math.min(tzL, tzR);
-      const sl = left / (10**cancel), sr = right / (10**cancel);
-      return pick([
-        `Cancel ${cancel} trailing zero${cancel>1?"s":""}: ${left}÷${right} = ${sl}÷${sr} = ${answer}. Always simplify before dividing.`,
-        `Both end in ${cancel>1?`${cancel} zeros`:"a zero"}: cross them off. ${sl}÷${sr}=${answer}.`,
-      ]);
-    }
-
-    // Simplify by GCD > 1 when divisor isn't already a small prime
-    const g = gcd(left, right);
-    if (g > 1 && right > 12 && g !== right) {
-      const sl = left/g, sr = right/g;
-      return pick([
-        `GCD shortcut: ${left} and ${right} share factor ${g}. Divide both: ${sl}÷${sr}=${answer}.`,
-        `Simplify first: both divisible by ${g}. ${left}÷${g}=${sl}, ${right}÷${g}=${sr}. Now ${sl}÷${sr}=${answer}.`,
-        `Cancel the common factor (${g}): ${left}÷${right} = ${sl}÷${sr} = ${answer}.`,
-      ]);
-    }
-
-    // Halve both if both are even
-    if (left % 2 === 0 && right % 2 === 0 && right > 4) {
-      const hl = left/2, hr = right/2;
-      return pick([
-        `Both even — halve both sides: ${left}÷${right} = ${hl}÷${hr} = ${answer}. Smaller numbers are easier.`,
-        `Halve dividend and divisor together: ${hl}÷${hr}=${answer}. The ratio stays the same.`,
-      ]);
-    }
-
-    if (right === 2) return pick([
-      `Halving: split ${left} into two equal parts. ${left/2} + ${left/2} = ${left} ✓`,
-      `÷2 = half. Is ${left} even? Yes — straight halve: ${answer}.`,
-      `Think of it as sharing ${left} equally between 2 people: ${answer} each.`,
-      `÷2 shortcut: if the number ends in an even digit, halve the last two digits. ${left} → ${answer}.`,
-    ]);
-
-    if (right === 3) return pick([
-      `÷3 rule: digit sum of ${left} = ${digitSum(left)}, divisible by 3. Answer: ${answer}.`,
-      `Think multiplication: 3 × ${answer} = ${left}. Build your 3× table to speed this up.`,
-      `Chunking: how many 3s fit in ${Math.floor(left/10)*10}? ${Math.floor(left/10)*10/3|0} × 3 = ${(Math.floor(left/10)*10/3|0)*3}. Then handle the remainder.`,
-      `÷3: keep subtracting 3 mentally in groups of 10, 20, 30… How many groups of 3 make ${left}? ${answer}.`,
-    ]);
-
-    if (right === 4) return pick([
-      `÷4 = halve twice: ${left} → ${left/2} → ${answer}.`,
-      `Think quarters: ${left} ÷ 4 is one quarter of ${left}. Half is ${left/2}, half again = ${answer}.`,
-      `Halve it: ${left/2}. Is that even? Halve again: ${answer}. Done.`,
-      `÷4 shortcut: ÷2 then ÷2. ${left}÷2=${left/2}, ÷2=${answer}.`,
-    ]);
-
-    if (right === 5) return pick([
-      `÷5 trick: double it, then ÷10. ${left}×2=${left*2}, drop the zero → ${answer}.`,
-      `Every multiple of 5 ends in 0 or 5. ${left}÷5: double to ${left*2}, shift decimal → ${answer}.`,
-      `Think: how many 5s in ${left}? Same as how many 10s in ${left*2}: ${answer}.`,
-      `÷5 = ×0.2. Easier: ×2 ÷10. ${left}×2=${left*2} → ${answer}.`,
-    ]);
-
-    if (right === 6) return pick([
-      `÷6 = ÷2 then ÷3: ${left}÷2=${left/2}, ÷3=${answer}.`,
-      `÷6: halve first (${left/2}), then check if digit sum is divisible by 3. ${left/2}÷3=${answer}.`,
-      `Think: 6×${answer}=${left}. Knowing 6× table makes this instant.`,
-    ]);
-
-    if (right === 7) return pick([
-      `÷7: build the 7× table mentally: 7,14,21,28,35,42,49,56,63,70… ${left} ÷ 7 = ${answer}.`,
-      `Flip it: 7×${answer}=${left}. Times-table recall is the fastest route.`,
-      `Chunk: 7×${Math.floor(answer/10)*10}=${7*Math.floor(answer/10)*10}, then add 7×${answer%10}=${7*(answer%10)}. Total: ${left}.`,
-      `÷7 trick: double the last digit, subtract from the rest. Repeat until small. It's divisible by 7 if you reach 0 or 7.`,
-      `Partial quotients: 7×${Math.floor(left/70)*10}=${Math.floor(left/70)*10*7}, remainder ${left-Math.floor(left/70)*10*7}. ÷7=${answer}.`,
-    ]);
-
-    if (right === 8) return pick([
-      `÷8 = halve 3 times: ${left} → ${left/2} → ${left/4} → ${answer}.`,
-      `Think eighths: ${left}÷8. Half = ${left/2}, quarter = ${left/4}, eighth = ${answer}.`,
-      `÷8 check: is ${left} divisible by 2 three times over? Yes. ${left}→${left/2}→${left/4}→${answer}.`,
-      `÷8: divide by 4 (${left/4}) then by 2 again = ${answer}.`,
-    ]);
-
-    if (right === 9) return pick([
-      `Flip to ×: 9×${answer}=${left}. Times-table recall beats long division.`,
-      `÷9 digit trick: digits of ${left} sum to ${digitSum(left)}. Quotient is ${answer}.`,
-      `Think: 9×10=${10*9}, 9×${answer}=${left}. Step through 9× table to land on ${left}.`,
-      `÷9: every multiple of 9 has a digit sum that's also a multiple of 9. ${digitSum(left)} → answer is ${answer}.`,
-    ]);
-
-    if (right === 10) return pick([
-      `÷10: just shift the decimal one place left. ${left} → ${answer}.`,
-      `Drop a zero (or move the decimal). ${left}÷10 = ${answer}. Instant.`,
-      `Multiplying and dividing by 10 is just about place value. ${left}→${answer}.`,
-    ]);
-
-    if (right === 11) return pick([
-      `÷11 alternating-digit rule: alternately subtract and add digits of ${left} right-to-left. If result is 0 or divisible by 11, it divides evenly. Answer: ${answer}.`,
-      `Flip it: 11×${answer}=${left}. The 11× pattern (11,22,33…) makes this fast.`,
-      `÷11 check: for ${left}, alternating digit sum = ${String(left).split("").reduce((s,d,i)=>s+(i%2===0?+d:-+d),0)}. Divisible by 11 → answer is ${answer}.`,
-      `Partial quotients: 11×${Math.floor(answer/10)*10}=${11*Math.floor(answer/10)*10}, remainder ${left-11*Math.floor(answer/10)*10}÷11=${answer%10}. Total: ${answer}.`,
-    ]);
-
-    if (right === 12) return pick([
-      `÷12 = ÷4 then ÷3: ${left}÷4=${left/4}, ÷3=${answer}.`,
-      `÷12 = ÷3 then ÷4: ${left}÷3=${left/3}, ÷4=${answer}.`,
-      `Think: 12×${answer}=${left}. A strong 12× table is worth memorising.`,
-    ]);
-
-    if (right === 15) return pick([
-      `÷15 = ÷3 then ÷5: ${left}÷3=${left/3}, ÷5=${answer}.`,
-      `÷15 = ÷5 then ÷3: ${left}÷5=${left/5}, ÷3=${answer}.`,
-    ]);
-
-    if (right === 20) return pick([
-      `÷20 = ÷2 then ÷10: ${left}÷2=${left/2}, ÷10=${answer}.`,
-      `Think: 20×${answer}=${left}. 20 is just 2×10 — easy chain.`,
-      `Halve first (${left/2}), then drop a zero: ${answer}.`,
-    ]);
-
-    if (right === 25) return pick([
-      `÷25 trick: ×4 then ÷100. ${left}×4=${left*4}, ÷100=${answer}.`,
-      `25 = 100÷4, so ÷25 = ×4÷100. ${left}×4=${left*4} → ${answer}.`,
-      `Think quarters of 100: 25×4=100. So ${left}÷25 = ${left}×4÷100 = ${answer}.`,
-    ]);
-
-    if (right === 50) return pick([
-      `÷50 trick: ×2 then ÷100. ${left}×2=${left*2} → ${answer}.`,
-      `50 = 100÷2, so ÷50 = ×2÷100. ${left}×2=${left*2}, ÷100=${answer}.`,
-    ]);
-
-    if (right === 100) return pick([
-      `÷100: shift decimal two places left. ${left} → ${answer}. Place value — no calculation needed.`,
-    ]);
-
-    if (right % 10 === 0) {
-      const base = right / 10;
-      return pick([
-        `${right} = ${base}×10. Divide by ${base} first: ${left}÷${base}=${left/base}, then ÷10 = ${answer}.`,
-        `Break it: ÷${base} gives ${left/base}, then ÷10 = ${answer}. Always split round divisors.`,
-      ]);
-    }
-
-    // factor-pair shortcut if divisor factors cleanly
-    for (let f = 2; f <= Math.sqrt(right); f++) {
-      if (right % f === 0) {
-        const g = right / f;
-        return pick([
-          `${right} = ${f}×${g}. Divide in steps: ${left}÷${f}=${left/f}, ÷${g}=${answer}.`,
-          `Break ${right} into ${f}×${g}: do ${left}÷${f}=${left/f} first, then ÷${g}=${answer}.`,
-        ]);
-      }
-    }
-
-    // try chunking as a specific tip
-    const ct = chunkTip(left, right, answer);
-    if (ct) return pick([ct,
-      `Compatible numbers: round ${left} to the nearest multiple of ${right} to estimate, then adjust.`,
-    ]);
-
-    return pick([
-      `Build the ${right}× table up to ${left}: …${right}×${answer}=${left}. Repetition makes it automatic.`,
-      `Chunking (partial quotients): find a round multiple of ${right} near ${left}, divide that chunk, handle the rest. Answer: ${answer}.`,
-      `Estimate first: ${right}×${Math.round(answer/10)*10}≈${right*Math.round(answer/10)*10}. Refine to get ${answer}.`,
-      `Compatible numbers: what round multiple of ${right} is close to ${left}? Use it as your starting point, then adjust.`,
-    ]);
-  }
-
-  // ─── MULTIPLICATION ───────────────────────────────────────
-  if (opSymbol === "×") {
-    const a = left, b = right;
-    const lo = Math.min(a,b), hi = Math.max(a,b);
-
-    if (lo === 2) return pick([
-      `×2 = doubling: ${hi}+${hi}=${answer}. Doubling is the fastest mental operation.`,
-      `Double ${hi}: add it to itself. ${hi}+${hi}=${answer}.`,
-      `×2: picture two rows of ${hi} — total ${answer}.`,
-    ]);
-
-    if (lo === 3) return pick([
-      `×3 = double then add one more: ${hi}×2=${hi*2}, +${hi}=${answer}.`,
-      `Triple ${hi}: ${hi}+${hi}=${hi*2}, +${hi}=${answer}.`,
-      `×3: think of three equal groups of ${hi}. ${hi}+${hi}+${hi}=${answer}.`,
-    ]);
-
-    if (lo === 4) return pick([
-      `×4 = double twice: ${hi}×2=${hi*2}, ×2=${answer}.`,
-      `×4: double ${hi} to get ${hi*2}, double again → ${answer}.`,
-      `Four groups of ${hi}: halve your target ${answer} twice to check: ${answer/2}, ${hi}. ✓`,
-    ]);
-
-    if (lo === 5) return pick([
-      `×5: ×10 then halve. ${hi}×10=${hi*10}, ÷2=${answer}.`,
-      `Five is half of ten: ${hi}×5 = ${hi}×10÷2 = ${hi*10}÷2 = ${answer}.`,
-      `×5 trick: if ${hi} is even, halve it and append 0: ${hi/2}0=${answer}. If odd, result ends in 5.`,
-    ]);
-
-    if (lo === 6) return pick([
-      `×6 = ×5 + ×1: ${hi}×5=${hi*5}, +${hi}=${answer}.`,
-      `×6: double then triple, or triple then double. ${hi}×3=${hi*3}, ×2=${answer}.`,
-      `×6 = ×2 × ×3: ${hi}×2=${hi*2}, ×3=${answer}.`,
-    ]);
-
-    if (lo === 7) return pick([
-      `×7 = ×5 + ×2: ${hi}×5=${hi*5}, +${hi*2}=${answer}.`,
-      `×7: hardest single digit. Break it: ${hi}×7 = ${hi}×(5+2) = ${hi*5}+${hi*2} = ${answer}.`,
-      `×7 = ×8 − ×1: ${hi}×8=${hi*8}, −${hi}=${answer}.`,
-      `Build the 7× table: 7,14,21,28,35,42,49,56,63,70… ${hi}×7=${answer}.`,
-    ]);
-
-    if (lo === 8) return pick([
-      `×8 = double three times: ${hi}→${hi*2}→${hi*4}→${answer}.`,
-      `×8 = ×10 − ×2: ${hi}×10=${hi*10}, −${hi*2}=${answer}.`,
-      `Triple-double: ${hi}×2=${hi*2}, ×2=${hi*4}, ×2=${answer}.`,
-    ]);
-
-    if (lo === 9) return pick([
-      `×9 trick: ×10 then subtract one group. ${hi}×10=${hi*10}, −${hi}=${answer}.`,
-      `×9 finger trick: for single-digit ${hi}, hold up ${hi} fingers and put down finger #${lo}… Or just ×10−${hi}=${answer}.`,
-      `×9: the digits of the answer always sum to 9 (for single-digit multipliers). ${answer}: ${String(answer).split("").reduce((s,d)=>s+ +d,0)}. ✓`,
-      `×9 = ×10 − ×1: ${hi}×10=${hi*10}, subtract ${hi} once = ${answer}.`,
-    ]);
-
-    if (lo === 11) return pick([
-      lo < 10
-        ? `×11 single digit: just write the digit twice. ${hi}×11 = ${answer}.`
-        : `×11 two-digit: outer digits stay, middle = digit sum. ${a}×${b}=${answer}.`,
-      `×11 = ×10 + ×1: ${hi}×10=${hi*10}, +${hi}=${answer}.`,
-    ]);
-
-    if (lo === 12) return pick([
-      `×12 = ×10 + ×2: ${hi}×10=${hi*10}, +${hi*2}=${answer}.`,
-      `×12: double the number then add ten times the number: ${hi*2}+${hi*10}=${answer}.`,
-      `Dozen trick: 12×${hi} — think 10 of them (${hi*10}) plus 2 more (${hi*2}) = ${answer}.`,
-    ]);
-
-    if (lo === 15) return pick([
-      `×15 = ×10 + ×5: ${hi}×10=${hi*10}, +${hi*5}=${answer}.`,
-      `×15 = ×3 × ×5: ${hi}×3=${hi*3}, ×5=${answer}.`,
-    ]);
-
-    if (lo === 25) return pick([
-      `×25 = ×100÷4: ${hi}×100=${hi*100}, ÷4=${answer}.`,
-      `25 is a quarter of 100. ${hi}÷4=${hi/4}, ×100=${answer}.`,
-    ]);
-
-    if (lo === 50) return pick([
-      `×50 = ×100÷2: ${hi}×100=${hi*100}, ÷2=${answer}.`,
-      `50 is half of 100: ${hi}×50 = ${hi}×100÷2 = ${answer}.`,
-    ]);
-
-    if (lo === 99) return pick([
-      `×99 = ×100 − ×1: ${hi}×100=${hi*100}, −${hi}=${answer}.`,
-    ]);
-
-    // near multiple of 10
-    const nearHi = Math.round(hi/10)*10, diffHi = hi - nearHi;
-    if (Math.abs(diffHi) === 1) return pick([
-      `${hi} is 1 away from ${nearHi}: ${lo}×${nearHi}=${lo*nearHi}, then ${diffHi>0?`+${lo}`:`−${lo}`} = ${answer}.`,
-      `Round ${hi} to ${nearHi}: ${lo}×${nearHi}=${lo*nearHi}, adjust by ${Math.abs(diffHi)}×${lo}=${Math.abs(diffHi)*lo} → ${answer}.`,
-    ]);
-    if (Math.abs(diffHi) === 2) return pick([
-      `${hi} ≈ ${nearHi}: ${lo}×${nearHi}=${lo*nearHi}, ${diffHi>0?`+${lo*2}`:`−${lo*2}`} = ${answer}.`,
-    ]);
-
-    // decompose hi into tens + units
-    const hiT = Math.floor(hi/10)*10, hiU = hi%10;
-    if (hiT > 0 && hiU > 0) return pick([
-      `Break ${hi} = ${hiT}+${hiU}: ${lo}×${hiT}=${lo*hiT}, ${lo}×${hiU}=${lo*hiU}, add → ${answer}.`,
-      `Distributive law: ${lo}×${hiT}=${lo*hiT}, ${lo}×${hiU}=${lo*hiU}. Sum: ${answer}.`,
-      `Split the bigger number: ${lo}×${hi} = ${lo}×${hiT} + ${lo}×${hiU} = ${lo*hiT}+${lo*hiU}=${answer}.`,
-    ]);
-
-    return pick([
-      `Break one factor into parts, multiply each, then add. ${a}×${b} = ${answer}.`,
-      `Estimate: ${Math.round(a/10)*10}×${Math.round(b/10)*10}≈${Math.round(a/10)*10*Math.round(b/10)*10}. True answer: ${answer}.`,
-      `Repeated doubling or halving can simplify any multiplication. Practice finding which factor to split.`,
-    ]);
-  }
-
-  // ─── ADDITION ─────────────────────────────────────────────
-  if (opSymbol === "+") {
-    const lo = Math.min(left,right), hi = Math.max(left,right);
-
-    // doubles / near-doubles
-    if (left === right) return pick([
-      `Double ${left}: ${left}+${left}=${answer}. Doubles are worth memorising cold.`,
-      `Same number twice — just double it: ${answer}.`,
-    ]);
-    if (Math.abs(left-right) === 1) return pick([
-      `Near-double: ${lo}+${lo}=${lo*2}, +1=${answer}. Near-doubles are almost as fast as doubles.`,
-      `${hi} = ${lo}+1: double ${lo} (=${lo*2}), add 1 = ${answer}.`,
-    ]);
-    if (Math.abs(left-right) === 2) return pick([
-      `Near-double: ${lo}+${lo}=${lo*2}, +2=${answer}.`,
-    ]);
-
-    // make-10 / make-100
-    const lU = left % 10, rU = right % 10;
-    if (lU + rU === 10) return pick([
-      `Units make 10 (${lU}+${rU}=10): add tens separately then add 10. (${left-lU}+${right-rU})+10=${answer}.`,
-      `"Make a 10": ${lU}+${rU}=10, so just add the tens: ${left-lU}+${right-rU}=${left-lU+right-rU}, +10=${answer}.`,
-    ]);
-    if (lU + rU < 10) return pick([
-      `Units don't carry (${lU}+${rU}=${lU+rU}): add tens then units. ${Math.floor(left/10)*10+Math.floor(right/10)*10}+${lU+rU}=${answer}.`,
-      `No carrying needed: (${Math.floor(left/10)*10}+${Math.floor(right/10)*10}) + (${lU}+${rU}) = ${answer}.`,
-    ]);
-
-    // make-10 borrow from right
-    const comp = 10 - lU;
-    if (lU !== 0 && right >= comp) {
-      const rounded = left + comp, rem = right - comp;
-      return pick([
-        `"Make a 10": borrow ${comp} from ${right} → ${left}+${comp}=${rounded}, +${rem}=${answer}.`,
-        `Bridge through ${rounded}: ${left}+${comp}=${rounded}, then +${rem}=${answer}.`,
-        `Round up ${left} to ${rounded} (add ${comp}), then add the rest (${rem}): ${answer}.`,
-      ]);
-    }
-
-    // round-and-adjust
-    const nearR = Math.round(right/10)*10, diffR = right - nearR;
-    if (diffR !== 0) return pick([
-      `Round ${right} to ${nearR}: ${left}+${nearR}=${left+nearR}, then ${diffR>0?`+${diffR}`:`${diffR}`}=${answer}.`,
-      `Adjust: ${left}+${nearR}=${left+nearR}, correct by ${diffR>0?`adding ${diffR}`:`subtracting ${Math.abs(diffR)}`} → ${answer}.`,
-      `Compensate: overshoot to ${nearR}, then correct. ${left+nearR}${diffR<0?`+${Math.abs(diffR)}`:`−${diffR}`}=${answer}.`,
-    ]);
-
-    // left-to-right
-    const lT=Math.floor(left/10)*10, rT=Math.floor(right/10)*10;
-    return pick([
-      `Left-to-right: tens (${lT}+${rT}=${lT+rT}) then units (${lU}+${rU}=${lU+rU}). Total: ${answer}.`,
-      `Front-end first: ${lT}+${rT}=${lT+rT}, then +${lU+rU}=${answer}.`,
-      `Add the big parts first: ${hi}+${Math.floor(lo/10)*10}=${hi+Math.floor(lo/10)*10}, +${lo%10}=${answer}.`,
-    ]);
-  }
-
-  // ─── SUBTRACTION ──────────────────────────────────────────
-  if (opSymbol === "−") {
-    // equal subtraction from round number
-    if (left % 10 === 0 || left % 100 === 0) return pick([
-      `Subtracting from a round number: ${left}−${right}. Count back: ${left}−${Math.floor(right/10)*10}=${left-Math.floor(right/10)*10}, −${right%10}=${answer}.`,
-      `${left} is round — split ${right}: ${left}−${Math.floor(right/10)*10}=${left-Math.floor(right/10)*10}, −${right%10}=${answer}.`,
-    ]);
-
-    // count-up (shopkeeper's method)
-    const roundUp = Math.ceil(right/10)*10;
-    if (roundUp !== right && roundUp < left) {
-      const s1=roundUp-right, s2=left-roundUp;
-      return pick([
-        `Count up from ${right}: +${s1}→${roundUp}, +${s2}→${left}. Gap = ${s1}+${s2}=${answer}.`,
-        `Shopkeeper's method: ${right}+${s1}=${roundUp}, +${s2}=${left}. Total added: ${answer}.`,
-        `Bridge through ${roundUp}: ${right}→${roundUp} needs ${s1}, then ${roundUp}→${left} needs ${s2}. Sum: ${answer}.`,
-      ]);
-    }
-
-    // round-and-adjust
-    const nearR = Math.round(right/10)*10, diffR = right - nearR;
-    if (diffR !== 0) return pick([
-      `Round ${right} to ${nearR}: ${left}−${nearR}=${left-nearR}, then ${diffR>0?`−${diffR}`:`+${Math.abs(diffR)}`}=${answer}.`,
-      `Adjust: subtract ${nearR} first (${left-nearR}), then ${diffR>0?`take off ${diffR} more`:`add back ${Math.abs(diffR)}`} → ${answer}.`,
-      `Compensate: ${left}−${nearR}=${left-nearR}, correct by ${diffR<0?`+${Math.abs(diffR)}`:`−${diffR}`}=${answer}.`,
-    ]);
-
-    // near-doubles subtract
-    if (left - right === right) return pick([
-      `${left} = 2×${right}: taking away half leaves ${answer}.`,
-    ]);
-
-    // complement to 100
-    if (right + answer === 100) return pick([
-      `${right} and ${answer} are complements of 100: ${right}+${answer}=100. Worth memorising pairs.`,
-    ]);
-
-    const rT=Math.floor(right/10)*10, rU=right%10;
-    if (rT>0 && rU>0) return pick([
-      `Split ${right} = ${rT}+${rU}: ${left}−${rT}=${left-rT}, −${rU}=${answer}.`,
-      `Subtract tens then units: ${left}−${rT}=${left-rT}, −${rU}=${answer}.`,
-      `Chunk: take away ${rT} (→${left-rT}), then ${rU} more (→${answer}).`,
-    ]);
-
-    return pick([
-      `Count the gap from ${right} to ${left}: that distance is ${answer}.`,
-      `Subtract in parts: round down ${right}, then adjust. Answer: ${answer}.`,
-      `Picture a number line: jump from ${right} to ${left} in two hops. Total distance: ${answer}.`,
-    ]);
-  }
-
-  return pick([
-    `Every miss reveals a gap to fill. Replay this problem until the answer is automatic.`,
-    `Patterns make arithmetic fast. Look for structure: factors, multiples, round numbers nearby.`,
-    `Mental math is about shortcuts, not memory alone. What pattern did this problem follow?`,
-  ]);
-}
-
-
-
-/* ============================================================
    Home Screen
    ============================================================ */
-function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode, hardMode, onToggleHardMode, theme, onToggleTheme }) {
+function HomeScreen({ onStartMode, lastMode, hardMode, onToggleHardMode, theme, onToggleTheme }) {
   const [selectedId, setSelectedId] = useState(
     () => (GAME_MODES.some((m) => m.id === lastMode) ? lastMode : GAME_MODES[0].id)
   );
@@ -1371,10 +955,10 @@ function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode, hardM
 
       <div className="toggle-row" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "var(--radius)", padding: "14px 18px" }}>
         <div>
-          <div className="tlabel">💡 Tips</div>
-          <div className="thint">Show mental math tips on misses</div>
+          <div className="tlabel">🔥 Hard Mode</div>
+          <div className="thint">No multiples of 10.</div>
         </div>
-        <button className={"switch" + (teachMode ? " on" : "")} onClick={onToggleTeachMode} aria-pressed={teachMode} aria-label="Tips" />
+        <button className={"switch" + (hardMode ? " on" : "")} onClick={onToggleHardMode} aria-pressed={hardMode} aria-label="Hard Mode" />
       </div>
 
       <div className="toggle-row" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "var(--radius)", padding: "14px 18px", marginTop: 10 }}>
@@ -1402,7 +986,6 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [perfectStreak, setPerfectStreak] = useState(0);
   const [timeLeft, setTimeLeft] = useState(settings.timeLimit);
   const [revealAnswer, setRevealAnswer] = useState(false);
-  const [tipText, setTipText] = useState(null);
   const [timeBonusDisplay, setTimeBonusDisplay] = useState(null);
   const [paused, setPaused] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
@@ -1440,7 +1023,6 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     setKeyFlash(null);
     setTimeLeft(settings.timeLimit);
     setRevealAnswer(false);
-    setTipText(null);
     setTimeBonusDisplay(null);
   }, [settings.timeLimit]);
 
@@ -1490,13 +1072,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       roundPerfect.current = false;
       revealing.current = true;
       setRevealAnswer(true);
-      setTimeout(() => {
-        if (settings.teachMode) {
-          setTipText(getTip(problem));
-        } else {
-          finishRound(false);
-        }
-      }, 1200);
+      setTimeout(() => finishRound(false), 1200);
       return;
     }
     const id = setTimeout(() => setTimeLeft((t) => +(t - 0.1).toFixed(1)), 100);
@@ -1547,6 +1123,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       // wrong digit: flash red, mark retry, then clear
       retriedPos.current.add(pos);
       roundPerfect.current = false;
+      setPerfectStreak(0); // break the fire streak the moment a guess is wrong
       wrongStreak.current += 1;
       setWrongCount(wrongStreak.current);
       flashKey(d, "red");
@@ -1557,13 +1134,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         setTimeout(() => {
           setWrongFlash(null);
           setRevealAnswer(true);
-          setTimeout(() => {
-            if (settings.teachMode) {
-              setTipText(getTip(problem));
-            } else {
-              finishRound(false);
-            }
-          }, 1200);
+          setTimeout(() => finishRound(false), 1200);
         }, 300);
       } else {
         setTimeout(() => setWrongFlash(null), 300);
@@ -1620,16 +1191,20 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         </div>
       </div>
 
-      <div className="strike-dots" aria-label={`${wrongCount} of 3 strikes`}>
-        {[0, 1, 2].map((i) => (
-          <span key={i} className={"sdot" + (i < wrongCount ? " filled" : "")} />
-        ))}
-      </div>
-
-      <div className="fire-bar">
-        {Array.from({ length: perfectStreak }).map((_, i) => (
-          <span key={i} style={{ animationDelay: (i * 0.08) + "s" }}>🔥</span>
-        ))}
+      <div className="streak-bar">
+        {wrongCount > 0 ? (
+          <div className="strike-dots" aria-label={`${wrongCount} of 3 strikes`}>
+            {[0, 1, 2].map((i) => (
+              <span key={i} className={"sdot" + (i < wrongCount ? " filled" : "")} />
+            ))}
+          </div>
+        ) : (
+          <div className="fire-bar">
+            {Array.from({ length: perfectStreak }).map((_, i) => (
+              <span key={i} style={{ animationDelay: (i * 0.08) + "s" }}>🔥</span>
+            ))}
+          </div>
+        )}
       </div>
 
       {settings.timeLimit > 0 && (
@@ -1644,15 +1219,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
       <div className="slots">{slots}</div>
 
-      {tipText ? (
-        <div className="tip-card">
-          <div className="tip-icon">💡</div>
-          <div className="tip-text">{tipText}</div>
-          <button className="start-btn" style={{ marginTop: 18 }} onClick={() => finishRound(false)}>
-            Got it →
-          </button>
-        </div>
-      ) : paused ? (
+      {paused ? (
         <div style={{ textAlign: "center", padding: "32px 0" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>⏸</div>
           <div style={{ color: "var(--muted)", fontSize: 15, marginBottom: 24 }}>Paused — no points for this question</div>
@@ -1719,11 +1286,6 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
   return (
     <div>
       <h1 className="title">Run Complete</h1>
-      <div className="subtitle" style={{ marginBottom: 12 }}>
-        {result.perfectRounds === settings.rounds
-          ? "🔥 Flawless! Every round perfect. 🔥"
-          : "Nice work — try to beat it."}
-      </div>
 
       <div className="panel" style={{ padding: 14, marginBottom: 12 }}>
         <div className="scard" style={{ background: "transparent", border: "none", padding: 0 }}>
@@ -1772,8 +1334,22 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
           {top5.map((entry, i) => (
             <div key={entry.ts} className={"lb-row" + (entry.ts === currentTs ? " lb-current" : "")}>
               <div className="lb-rank">{i + 1}</div>
-              <div className="lb-score">{entry.score}</div>
-              <div className="lb-meta">{entry.accuracy}% acc · {entry.date}</div>
+              <div className="lb-main">
+                <div className="lb-score-line">
+                  <span className="lb-score">{entry.score}</span>
+                  {entry.hardMode && <span className="lb-badge">🔥 Hard</span>}
+                </div>
+                <div className="lb-stats">
+                  {entry.accuracy}% acc
+                  {entry.perfectRounds != null && (
+                    <> · {entry.perfectRounds}/{entry.rounds} perfect</>
+                  )}
+                  {entry.totalDigits != null && (
+                    <> · {entry.firstTryDigits}/{entry.totalDigits} digits</>
+                  )}
+                  {" · "}{entry.date}
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -1796,8 +1372,8 @@ function App() {
   // screen: "home" | "game" | "summary"
   const [screen, setScreen] = useState("home");
   const [seed, setSeed] = useState("");
-  const [teachMode, setTeachMode] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("math-blitz-teach")) ?? false; } catch { return false; }
+  const [hardMode, setHardMode] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("math-blitz-hard")) ?? false; } catch { return false; }
   });
   const [hardMode, setHardMode] = useState(() => {
     try { return JSON.parse(localStorage.getItem("math-blitz-hard")) ?? false; } catch { return false; }
@@ -1837,10 +1413,10 @@ function App() {
     setScreen("game");
   };
 
-  const toggleTeachMode = () => {
-    setTeachMode((v) => {
+  const toggleHardMode = () => {
+    setHardMode((v) => {
       const next = !v;
-      try { localStorage.setItem("math-blitz-teach", JSON.stringify(next)); } catch {}
+      try { localStorage.setItem("math-blitz-hard", JSON.stringify(next)); } catch {}
       return next;
     });
   };
@@ -1856,7 +1432,7 @@ function App() {
   const startMode = (mode, seedOverride = null) => {
     setLastMode(mode.id);
     try { localStorage.setItem("math-blitz-mode", mode.id); } catch {}
-    launch(seedOverride ?? randomSeed(), { ...mode.settings, teachMode, hardMode });
+    launch(seedOverride ?? randomSeed(), { ...mode.settings, hardMode });
   };
 
   const playAgain = () => {
@@ -1867,7 +1443,8 @@ function App() {
 
   const finishGame = (res) => {
     if (res === null) { setScreen("home"); return; }
-    const existing = loadHighScores(lastMode);
+    const hard = !!playSettings.hardMode;
+    const existing = loadHighScores(lastMode, hard);
     const best = existing.length > 0 ? existing[0].score : null;
     const ts = Date.now();
     const acc = res.totalDigits > 0 ? Math.round((res.firstTryDigits / res.totalDigits) * 100) : 0;
@@ -1876,11 +1453,14 @@ function App() {
       accuracy: acc,
       perfectRounds: res.perfectRounds,
       rounds: playSettings.rounds,
+      firstTryDigits: res.firstTryDigits,
+      totalDigits: res.totalDigits,
+      hardMode: !!playSettings.hardMode,
       seed,
       date: new Date().toLocaleDateString(),
       ts,
     };
-    const updated = insertHighScore(record, existing, lastMode);
+    const updated = insertHighScore(record, existing, lastMode, hard);
     setHighScores(updated);
     setPrevBest(best);
     setCurrentTs(ts);
@@ -1918,8 +1498,6 @@ function App() {
     <HomeScreen
       onStartMode={startMode}
       lastMode={lastMode}
-      teachMode={teachMode}
-      onToggleTeachMode={toggleTeachMode}
       hardMode={hardMode}
       onToggleHardMode={toggleHardMode}
       theme={theme}

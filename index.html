@@ -1547,6 +1547,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       // wrong digit: flash red, mark retry, then clear
       retriedPos.current.add(pos);
       roundPerfect.current = false;
+      setPerfectStreak(0); // break the fire streak the moment a guess is wrong
       wrongStreak.current += 1;
       setWrongCount(wrongStreak.current);
       flashKey(d, "red");

@@ -380,6 +380,7 @@
     gap: 12px;
   }
   .key {
+    position: relative;
     padding: 22px 0;
     font-size: 30px;
     font-weight: 900;
@@ -399,7 +400,20 @@
   }
   .key.flash-green { background: linear-gradient(180deg, var(--green), #18a661); border-color: var(--green); }
   .key.flash-red { background: linear-gradient(180deg, var(--red), #d6324f); border-color: var(--red); }
-  .key.flash-red-soft { background: linear-gradient(180deg, #b8576a, #934150); border-color: #b8576a; }
+  /* Strobe: a red overlay snaps on, then quickly fades out over the key face. */
+  .key.flash-red-soft::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(180deg, #b8576a, #934150);
+    pointer-events: none;
+    animation: strobeRed 320ms ease-out forwards;
+  }
+  @keyframes strobeRed {
+    0%   { opacity: 0.9; }
+    100% { opacity: 0; }
+  }
   .key.wide { font-size: 22px; }
   .key.action { color: var(--amber); }
 
@@ -414,7 +428,7 @@
   }
   :root[data-theme="light"] .key.flash-green { background: linear-gradient(180deg, var(--green), #18a661); }
   :root[data-theme="light"] .key.flash-red { background: linear-gradient(180deg, var(--red), #d6324f); }
-  :root[data-theme="light"] .key.flash-red-soft { background: linear-gradient(180deg, #e0879a, #cf6b7e); border-color: #e0879a; }
+  :root[data-theme="light"] .key.flash-red-soft::after { background: linear-gradient(180deg, #e0879a, #cf6b7e); }
 
   /* ---------- Summary ---------- */
   .big-score {
@@ -1104,8 +1118,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       wrongStreak.current += 1;
       setWrongCount(wrongStreak.current);
       flashKey(d, "red");
-      setWrongPulse(true); // flash every number key red, very briefly
-      setTimeout(() => setWrongPulse(false), 140);
+      setWrongPulse(true); // strobe every number key red, then let it fade out
+      setTimeout(() => setWrongPulse(false), 320);
       setWrongFlash(d);
       if (wrongStreak.current >= 3) {
         // 3 strikes: reveal answer and move on, no points for this position

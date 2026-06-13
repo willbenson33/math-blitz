@@ -960,14 +960,6 @@ function HomeScreen({ onStartMode, lastMode, hardMode, onToggleHardMode, theme, 
         </div>
         <button className={"switch" + (hardMode ? " on" : "")} onClick={onToggleHardMode} aria-pressed={hardMode} aria-label="Hard Mode" />
       </div>
-
-      <div className="toggle-row" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "var(--radius)", padding: "14px 18px", marginTop: 10 }}>
-        <div>
-          <div className="tlabel">🔥 Hard Mode</div>
-          <div className="thint">No multiples of 10 — no easy place-value shortcuts</div>
-        </div>
-        <button className={"switch" + (hardMode ? " on" : "")} onClick={onToggleHardMode} aria-pressed={hardMode} aria-label="Hard Mode" />
-      </div>
     </div>
     </div>
   );
@@ -1375,9 +1367,6 @@ function App() {
   const [hardMode, setHardMode] = useState(() => {
     try { return JSON.parse(localStorage.getItem("math-blitz-hard")) ?? false; } catch { return false; }
   });
-  const [hardMode, setHardMode] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("math-blitz-hard")) ?? false; } catch { return false; }
-  });
   const [playSettings, setPlaySettings] = useState(DEFAULT_SETTINGS);
   const [rounds, setRounds] = useState([]);
   const [result, setResult] = useState(null);
@@ -1411,14 +1400,6 @@ function App() {
     setResult(null);
     setGameId((g) => g + 1);
     setScreen("game");
-  };
-
-  const toggleHardMode = () => {
-    setHardMode((v) => {
-      const next = !v;
-      try { localStorage.setItem("math-blitz-hard", JSON.stringify(next)); } catch {}
-      return next;
-    });
   };
 
   const toggleHardMode = () => {

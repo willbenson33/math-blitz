@@ -661,7 +661,28 @@ function passesFilters(left, right, answer, s, op) {
   return true;
 }
 
+function generateDecimalDivision(rng, s) {
+  const max = s.range;
+  // Divisors whose only prime factors are 2 and 5 produce quotients that
+  // terminate at one decimal place (e.g. ÷2 → .5, ÷5 → .2). The reject tests
+  // below keep every answer to a single decimal digit AND throw out any that
+  // divides evenly, so this mode only ever shows true decimal quotients.
+  const divisors = [2, 4, 5, 8, 10];
+  for (let i = 0; i < 6000; i++) {
+    const right = divisors[Math.floor(rng() * divisors.length)];
+    const left = randInt(rng, right, max);
+    if (left % right === 0) continue;                   // skip whole-number quotients
+    if ((left * 10) % right !== 0) continue;            // must terminate at 1 decimal place
+    const answer = Math.round((left * 10) / right) / 10;
+    if (answer < 1) continue;
+    if (passesFilters(left, right, answer, s, "division"))
+      return { left, opSymbol: "÷", right, answer };
+  }
+  return { left: 15, opSymbol: "÷", right: 2, answer: 7.5 };
+}
+
 function generateDivision(rng, s) {
+  if (s.decimals) return generateDecimalDivision(rng, s);
   const max = s.range;
   const dMin = s.divisorMin ?? 2;
   const dMax = s.divisorMax != null
@@ -824,6 +845,16 @@ const GAME_MODES = [
       operations: { division: false, multiplication: true, addition: false, subtraction: false },
       factorAMin: 11, factorAMax: 20,
       factorBMin: 1, factorBMax: 20,
+    }),
+  },
+  {
+    id: "decimal-div",
+    emoji: "🔢",
+    name: "Decimal Division",
+    tagline: "Quotients are decimals",
+    settings: modeSettings({
+      operations: { division: true, multiplication: false, addition: false, subtraction: false },
+      decimals: true,
     }),
   },
   {

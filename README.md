@@ -25,17 +25,18 @@ always plays the same way regardless of what's in your custom Settings:
 
 ## Custom Game
 
-Use the **Custom Game** panel (home or summary screen) to play a run with whatever
-you've configured on the Settings screen.
+Pick a mode from the **Game Mode** dropdown on the home screen and hit start, or use
+the **Custom Game** panel (home or summary screen) to play a run with whatever you've
+configured on the Settings screen.
 
 ## Settings
+
+Settings apply to the **Custom Game** (game modes carry their own configuration):
 
 - **Number range** — dividends up to 100, 500, or 1000.
 - **Rounds** — how many problems in a run.
 - **Time / round** — ∞ (no limit), 5s, 10s, or 20s. The bar runs out → the round ends.
-- **Rounded numbers only** — divisors are round (multiples of 10); division is always clean.
-- **No zero in result** — answers never contain a `0` digit.
-- **Parity** — Any, Odds only (dividend & divisor odd), or Evens only.
+- **Teach Me Mode** — after a missed question, shows a mental-math shortcut for next time.
 - **Seed** — leave blank for a random seed or type your own. The same seed + same settings always produces the same problems in the same order. The active seed is shown during the game and on the summary so runs can be shared or replayed.
 
 ## How a round works

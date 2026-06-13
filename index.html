@@ -719,8 +719,20 @@ function generateTips(rng, s) {
   return { left: 50, opSymbol: "×", right: 0.2, answer: 10 };
 }
 
+function generatePercent(rng, s) {
+  // "P% of N" where N is a multiple of 100, so the answer is always an exact
+  // whole number. The percent range comes from the mode (e.g. 1–99 or 1–999).
+  const pctMin = s.percentMin ?? 1;
+  const pctMax = s.percentMax ?? 99;
+  const pct = randInt(rng, pctMin, pctMax);
+  const base = randInt(rng, 1, 10) * 100;        // 100 .. 1000
+  const answer = (pct * base) / 100;             // exact: base is a multiple of 100
+  return { left: pct + "%", opSymbol: "of", right: base, answer };
+}
+
 function generateMultiplication(rng, s) {
   if (s.tips) return generateTips(rng, s);
+  if (s.percent) return generatePercent(rng, s);
   const max = s.range;
 
   // Explicit factor ranges (e.g. times-tables modes): pick each factor
@@ -865,6 +877,26 @@ const GAME_MODES = [
     settings: modeSettings({
       operations: { division: false, multiplication: true, addition: false, subtraction: false },
       tips: true,
+    }),
+  },
+  {
+    id: "percent-99",
+    emoji: "％",
+    name: "Percents (1–99%)",
+    tagline: "Find 1–99% of a number",
+    settings: modeSettings({
+      operations: { division: false, multiplication: true, addition: false, subtraction: false },
+      percent: true, percentMin: 1, percentMax: 99,
+    }),
+  },
+  {
+    id: "percent-999",
+    emoji: "💯",
+    name: "Percents (1–999%)",
+    tagline: "Find 1–999% of a number",
+    settings: modeSettings({
+      operations: { division: false, multiplication: true, addition: false, subtraction: false },
+      percent: true, percentMin: 1, percentMax: 999,
     }),
   },
   {

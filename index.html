@@ -166,6 +166,27 @@
   }
   input:focus { border-color: var(--accent); }
 
+  .mode-select {
+    width: 100%;
+    padding: 13px 40px 13px 14px;
+    border-radius: 12px;
+    background: var(--panel-2);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238c97b3' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    transition: border-color .15s ease;
+  }
+  .mode-select:focus { border-color: var(--accent); }
+  .mode-select option { background: var(--panel); color: var(--text); }
+
   .row2 { display: flex; gap: 12px; }
   .row2 > .field { flex: 1; margin-bottom: 0; }
 
@@ -1191,33 +1212,22 @@ function CustomGamePanel({ onStart }) {
    Settings Page  (full-page overlay with back button)
    ============================================================ */
 function SettingsPage({ initialSettings = {}, onBack }) {
-  const initOps = initialSettings.operations ?? { ...DEFAULT_SETTINGS.operations };
   const [range, setRange] = useState(initialSettings.range ?? DEFAULT_SETTINGS.range);
   const [rounds, setRounds] = useState(initialSettings.rounds ?? DEFAULT_SETTINGS.rounds);
   const [timeLimit, setTimeLimit] = useState(initialSettings.timeLimit ?? DEFAULT_SETTINGS.timeLimit);
-  const [rounded, setRounded] = useState(initialSettings.rounded ?? DEFAULT_SETTINGS.rounded);
-  const [noZero, setNoZero] = useState(initialSettings.noZero ?? DEFAULT_SETTINGS.noZero);
-  const [parity, setParity] = useState(initialSettings.parity ?? DEFAULT_SETTINGS.parity);
-  const [ops, setOps] = useState(initOps);
   const [teachMode, setTeachMode] = useState(initialSettings.teachMode ?? DEFAULT_SETTINGS.teachMode);
 
-  const toggleOp = (key) => {
-    setOps((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      // keep at least one on
-      if (!Object.values(next).some(Boolean)) return prev;
-      return next;
-    });
-  };
-
+  // Operations and problem rules are now driven by game modes, not the
+  // Settings page. Carry through whatever was previously stored (or the
+  // defaults) so a custom game still has a complete configuration.
   const save = () => onBack({
     range,
     rounds: Math.max(1, Math.min(99, parseInt(rounds, 10) || DEFAULT_SETTINGS.rounds)),
     timeLimit,
-    rounded,
-    noZero,
-    parity,
-    operations: ops,
+    rounded: initialSettings.rounded ?? DEFAULT_SETTINGS.rounded,
+    noZero: initialSettings.noZero ?? DEFAULT_SETTINGS.noZero,
+    parity: initialSettings.parity ?? DEFAULT_SETTINGS.parity,
+    operations: initialSettings.operations ?? { ...DEFAULT_SETTINGS.operations },
     teachMode,
   });
 
@@ -1236,29 +1246,6 @@ function SettingsPage({ initialSettings = {}, onBack }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
         <button className="back-btn" onClick={save} aria-label="Back">‹</button>
         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900 }}>Settings</h2>
-      </div>
-
-      <div className="panel">
-        <span className="label">Operations</span>
-        {[
-          { key: "division",       label: "Division",       symbol: "÷" },
-          { key: "multiplication", label: "Multiplication", symbol: "×" },
-          { key: "addition",       label: "Addition",       symbol: "+" },
-          { key: "subtraction",    label: "Subtraction",    symbol: "−" },
-        ].map(({ key, label, symbol }) => (
-          <div className="toggle-row" key={key}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 20, width: 28, textAlign: "center", color: "var(--accent-2)", fontWeight: 900 }}>{symbol}</span>
-              <div className="tlabel">{label}</div>
-            </div>
-            <button
-              className={"switch" + (ops[key] ? " on" : "")}
-              onClick={() => toggleOp(key)}
-              aria-pressed={ops[key]}
-              aria-label={label}
-            />
-          </div>
-        ))}
       </div>
 
       <div className="panel">
@@ -1290,21 +1277,6 @@ function SettingsPage({ initialSettings = {}, onBack }) {
       </div>
 
       <div className="panel">
-        <span className="label">Problem rules</span>
-        <Toggle on={rounded} set={setRounded} label="Rounded numbers only" hint="Divisors are round (×10), no remainders" />
-        <Toggle on={noZero} set={setNoZero} label="No zero in result" hint="Answers never contain a 0 digit" />
-
-        <div className="field" style={{ marginTop: 14, marginBottom: 0 }}>
-          <span className="label">Parity</span>
-          <div className="seg">
-            {[{ v: "any", t: "Any" }, { v: "odd", t: "Odds only" }, { v: "even", t: "Evens only" }].map((o) => (
-              <button key={o.v} className={parity === o.v ? "on" : ""} onClick={() => setParity(o.v)}>{o.t}</button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="panel">
         <Toggle
           on={teachMode}
           set={setTeachMode}
@@ -1326,24 +1298,37 @@ function SettingsPage({ initialSettings = {}, onBack }) {
    whatever is configured in Settings.
    ============================================================ */
 function HomeScreen({ onStartMode, onStartCustom, onOpenSettings, lastMode }) {
+  // Default the dropdown to the last mode played, otherwise the first mode.
+  const [selectedId, setSelectedId] = useState(
+    () => (GAME_MODES.some((m) => m.id === lastMode) ? lastMode : GAME_MODES[0].id)
+  );
+  const selectedMode = GAME_MODES.find((m) => m.id === selectedId) || GAME_MODES[0];
+
   return (
     <div>
       <h1 className="title">➗ Math Blitz</h1>
       <div className="subtitle">Mental math speed drills — beat your best run</div>
 
-      <span className="label" style={{ display: "block", marginBottom: 10 }}>Game Modes</span>
-      <div className="challenge-grid">
-        {GAME_MODES.map((m) => (
-          <button
-            key={m.id}
-            className={"challenge-card" + (m.id === lastMode ? " ch-active" : "")}
-            onClick={() => onStartMode(m)}
-          >
-            <div className="ch-emoji">{m.emoji}</div>
-            <div className="ch-name">{m.name}</div>
-            <div className="ch-tagline">{m.tagline}</div>
-          </button>
-        ))}
+      <div className="panel">
+        <span className="label">Game Mode</span>
+        <select
+          className="mode-select"
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+        >
+          {GAME_MODES.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.emoji} {m.name} — {m.tagline}
+            </option>
+          ))}
+        </select>
+        <button
+          className="start-btn"
+          style={{ marginTop: 14 }}
+          onClick={() => onStartMode(selectedMode)}
+        >
+          {selectedMode.emoji} Start {selectedMode.name} →
+        </button>
       </div>
 
       <span className="label" style={{ display: "block", margin: "20px 0 10px" }}>Custom Game</span>

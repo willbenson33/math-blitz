@@ -400,17 +400,19 @@
   }
   .key.flash-green { background: linear-gradient(180deg, var(--green), #18a661); border-color: var(--green); }
   .key.flash-red { background: linear-gradient(180deg, var(--red), #d6324f); border-color: var(--red); }
-  /* Strobe: a red overlay snaps on, then quickly fades out over the key face. */
-  .key.flash-red-soft::after {
+  /* Strobe: a colour overlay snaps on, then quickly fades out over the key face. */
+  .key.flash-red-soft::after,
+  .key.flash-green-soft::after {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(180deg, #b8576a, #934150);
     pointer-events: none;
-    animation: strobeRed 320ms ease-out forwards;
+    animation: strobeFade 320ms ease-out forwards;
   }
-  @keyframes strobeRed {
+  .key.flash-red-soft::after { background: linear-gradient(180deg, #b8576a, #934150); }
+  .key.flash-green-soft::after { background: linear-gradient(180deg, var(--green), #18a661); }
+  @keyframes strobeFade {
     0%   { opacity: 0.9; }
     100% { opacity: 0; }
   }
@@ -973,7 +975,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [scorePop, setScorePop] = useState(false);
   const [wrongFlash, setWrongFlash] = useState(null); // the wrong digit being flashed
   const [keyFlash, setKeyFlash] = useState(null);  // {digit, kind}
-  const [wrongPulse, setWrongPulse] = useState(false); // brief red flash across all number keys
+  const [wrongPulse, setWrongPulse] = useState(false); // brief red strobe across all number keys
+  const [rightPulse, setRightPulse] = useState(false); // brief green strobe when an answer completes
   const [perfectStreak, setPerfectStreak] = useState(0);
   const [timeLeft, setTimeLeft] = useState(settings.timeLimit);
   const [revealAnswer, setRevealAnswer] = useState(false);
@@ -1012,6 +1015,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     setLocked([]);
     setWrongFlash(null);
     setKeyFlash(null);
+    setWrongPulse(false);
+    setRightPulse(false);
     setTimeLeft(settings.timeLimit);
     setRevealAnswer(false);
     setTimeBonusDisplay(null);
@@ -1099,6 +1104,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       setLocked(next);
 
       if (next.length === answerStr.length) {
+        setRightPulse(true); // strobe every number key green on a completed answer
+        setTimeout(() => setRightPulse(false), 320);
         if (settings.timeLimit > 0) {
           const bonus = Math.round(timeLeft * 200 / (settings.timeLimit * settings.timeLimit));
           if (bonus > 0) {
@@ -1231,7 +1238,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         <div className="numpad" style={revealAnswer ? { opacity: 0.35, pointerEvents: "none" } : undefined}>
           {keys.map((k) => {
             let cls = "key";
-            if (wrongPulse) cls += " flash-red-soft";
+            if (rightPulse) cls += " flash-green-soft";
+            else if (wrongPulse) cls += " flash-red-soft";
             else if (keyFlash && keyFlash.digit === k) cls += keyFlash.kind === "green" ? " flash-green" : " flash-red";
             return (
               <button key={k} className={cls} onClick={() => handleDigit(k)}>{k}</button>
@@ -1252,7 +1260,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
             ⏰<span style={{ color: "var(--green)" }}>+</span>
           </button>
           <button
-            className={"key" + (wrongPulse ? " flash-red-soft" : keyFlash && keyFlash.digit === "0" ? (keyFlash.kind === "green" ? " flash-green" : " flash-red") : "")}
+            className={"key" + (rightPulse ? " flash-green-soft" : wrongPulse ? " flash-red-soft" : keyFlash && keyFlash.digit === "0" ? (keyFlash.kind === "green" ? " flash-green" : " flash-red") : "")}
             style={{ gridColumn: 2 }}
             onClick={() => handleDigit("0")}
           >

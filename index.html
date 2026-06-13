@@ -1514,7 +1514,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
               <button key={k} className={cls} onClick={() => handleDigit(k)}>{k}</button>
             );
           })}
-          <button className="key wide action" onClick={handleBackspace}>⌫</button>
+          <button className="key wide action" onClick={() => { roundPerfect.current = false; setPaused(true); }}>⏸</button>
           <button
             className={"key" + (keyFlash && keyFlash.digit === "0" ? (keyFlash.kind === "green" ? " flash-green" : " flash-red") : "")}
             onClick={() => handleDigit("0")}

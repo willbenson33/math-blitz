@@ -381,6 +381,18 @@
   .key.wide { font-size: 22px; }
   .key.action { color: var(--amber); }
 
+  :root[data-theme="light"] .key {
+    border: 1px solid rgba(127,127,127,0.16);
+    background: linear-gradient(180deg, #ffffff, #dde4f2);
+    box-shadow: 0 6px 0 #c2cbde, var(--shadow);
+  }
+  :root[data-theme="light"] .key:active {
+    box-shadow: 0 2px 0 #c2cbde, var(--shadow);
+    background: linear-gradient(180deg, #eef2fb, #d3dcee);
+  }
+  :root[data-theme="light"] .key.flash-green { background: linear-gradient(180deg, var(--green), #18a661); }
+  :root[data-theme="light"] .key.flash-red { background: linear-gradient(180deg, var(--red), #d6324f); }
+
   /* ---------- Summary ---------- */
   .big-score {
     text-align: center;

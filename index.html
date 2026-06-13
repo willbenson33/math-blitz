@@ -909,11 +909,12 @@ function HomeScreen({ onStartMode, lastMode, theme, onToggleTheme }) {
   if (picking) {
     return (
       <div>
-        {themeBtn}
         <div className="gtop" style={{ marginBottom: 16 }}>
           <button className="back-btn" onClick={() => setPicking(false)} aria-label="Back">←</button>
           <h2 className="title" style={{ fontSize: 24 }}>Select a Mode</h2>
-          <div style={{ width: 40 }} />
+          <button className="back-btn" onClick={onToggleTheme} aria-label="Toggle light and dark mode">
+            {theme === "light" ? "🌙" : "☀️"}
+          </button>
         </div>
         <div className="challenge-grid">
           {GAME_MODES.map((m) => (

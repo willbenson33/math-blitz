@@ -858,7 +858,7 @@ const basePoints = (pos) => (pos + 1) * 5;
 /* ============================================================
    Home Screen
    ============================================================ */
-function HomeScreen({ onStartMode, lastMode, theme, onToggleTheme }) {
+function HomeScreen({ onStartMode, lastMode, hardMode, onToggleHardMode, theme, onToggleTheme }) {
   const [selectedId, setSelectedId] = useState(
     () => (GAME_MODES.some((m) => m.id === lastMode) ? lastMode : GAME_MODES[0].id)
   );
@@ -933,6 +933,14 @@ function HomeScreen({ onStartMode, lastMode, theme, onToggleTheme }) {
         >
           Start →
         </button>
+      </div>
+
+      <div className="toggle-row" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "var(--radius)", padding: "14px 18px" }}>
+        <div>
+          <div className="tlabel">🔥 Hard Mode</div>
+          <div className="thint">Hide the answer blanks — no digit hints</div>
+        </div>
+        <button className={"switch" + (hardMode ? " on" : "")} onClick={onToggleHardMode} aria-pressed={hardMode} aria-label="Hard Mode" />
       </div>
     </div>
     </div>
@@ -1110,13 +1118,17 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
   // render answer slots
   const slots = [];
+  // Hard mode hides the unfilled blanks so the answer's digit count stays secret.
+  const hideBlanks = settings.hardMode && !revealAnswer;
   for (let i = 0; i < answerStr.length; i++) {
     // show the decimal point in its fixed position between digit slots
-    if (i === dotIndex) {
+    if (i === dotIndex && (!hideBlanks || i < locked.length)) {
       slots.push(
         <div key={"dot" + i} className="slot-dot" aria-hidden="true">.</div>
       );
     }
+    // in hard mode, don't render positions that haven't been locked in yet
+    if (hideBlanks && i >= locked.length) continue;
     let cls = "slot";
     let content = "";
     if (i < locked.length) {
@@ -1337,6 +1349,9 @@ function App() {
   // screen: "home" | "game" | "summary"
   const [screen, setScreen] = useState("home");
   const [seed, setSeed] = useState("");
+  const [hardMode, setHardMode] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("math-blitz-hard")) ?? false; } catch { return false; }
+  });
   const [playSettings, setPlaySettings] = useState(DEFAULT_SETTINGS);
   const [rounds, setRounds] = useState([]);
   const [result, setResult] = useState(null);
@@ -1372,10 +1387,18 @@ function App() {
     setScreen("game");
   };
 
+  const toggleHardMode = () => {
+    setHardMode((v) => {
+      const next = !v;
+      try { localStorage.setItem("math-blitz-hard", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
   const startMode = (mode, seedOverride = null) => {
     setLastMode(mode.id);
     try { localStorage.setItem("math-blitz-mode", mode.id); } catch {}
-    launch(seedOverride ?? randomSeed(), { ...mode.settings });
+    launch(seedOverride ?? randomSeed(), { ...mode.settings, hardMode });
   };
 
   const playAgain = () => {
@@ -1439,6 +1462,8 @@ function App() {
     <HomeScreen
       onStartMode={startMode}
       lastMode={lastMode}
+      hardMode={hardMode}
+      onToggleHardMode={toggleHardMode}
       theme={theme}
       onToggleTheme={toggleTheme}
     />

@@ -366,15 +366,6 @@
   .tip-icon { font-size: 30px; text-align: center; margin-bottom: 10px; }
   .tip-text { font-size: 17px; line-height: 1.55; color: var(--text); font-weight: 500; }
 
-  /* Home screen: vertically centred */
-  .home-wrap {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    padding: 24px 0;
-  }
-  .home-inner { width: 100%; }
-
   .settings-toggle {
     display: flex;
     align-items: center;
@@ -516,15 +507,6 @@ function randomSeed() {
   return s;
 }
 
-// Today's challenge: a stable seed for the current calendar day, so everyone
-// who plays today gets the exact same sequence of problems.
-function dailySeed(d = new Date()) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return "DAILY-" + y + m + day;
-}
-
 /* ============================================================
    Problem generation
    ------------------------------------------------------------
@@ -621,65 +603,121 @@ function buildRounds(seedStr, settings) {
 }
 
 /* ============================================================
-   Challenges  (curated game modes with specific constraints)
-   Each challenge overrides a subset of settings for problem generation.
+   Default settings  (the baseline every game inherits)
+   Shared by the Settings page, the custom game, and every game mode
+   below — so a mode is always a complete, predictable configuration.
    ============================================================ */
-const CHALLENGES = [
+const DEFAULT_SETTINGS = {
+  range: 500,
+  rounds: 10,
+  timeLimit: 10,
+  rounded: false,
+  noZero: false,
+  parity: "any",
+  operations: { division: true, multiplication: false, addition: false, subtraction: false },
+  teachMode: false,
+};
+
+// Build a full settings object from the defaults plus a mode's specifics.
+// `operations` is replaced wholesale so each mode controls exactly which
+// operations are in play.
+function modeSettings(specifics = {}) {
+  return {
+    ...DEFAULT_SETTINGS,
+    ...specifics,
+    operations: { ...DEFAULT_SETTINGS.operations, ...(specifics.operations ?? {}) },
+  };
+}
+
+/* ============================================================
+   Game modes  (curated, self-contained configurations)
+   Each mode carries the FULL default settings merged with its own
+   constraints, so selecting a mode starts a predictable run that does
+   not depend on whatever is currently in the Settings page.
+   ============================================================ */
+const GAME_MODES = [
+  {
+    id: "classic",
+    emoji: "➗",
+    name: "Classic Division",
+    tagline: "Mixed divisors — the default blitz",
+    settings: modeSettings({}),
+  },
   {
     id: "single-div",
     emoji: "1️⃣",
     name: "÷ Single Digit",
     tagline: "Divide by 2–9",
-    override: { operations:{division:true,multiplication:false,addition:false,subtraction:false}, divisorMin:2, divisorMax:9 },
+    settings: modeSettings({
+      operations: { division: true, multiplication: false, addition: false, subtraction: false },
+      divisorMin: 2, divisorMax: 9,
+    }),
   },
   {
     id: "double-div",
     emoji: "🔢",
     name: "÷ Two Digits",
     tagline: "Divide by 10–99",
-    override: { operations:{division:true,multiplication:false,addition:false,subtraction:false}, divisorMin:10, divisorMax:99 },
+    settings: modeSettings({
+      operations: { division: true, multiplication: false, addition: false, subtraction: false },
+      divisorMin: 10, divisorMax: 99,
+    }),
   },
   {
     id: "round-div",
     emoji: "🔟",
     name: "÷ Round Numbers",
     tagline: "Divisors are multiples of 10",
-    override: { operations:{division:true,multiplication:false,addition:false,subtraction:false}, rounded:true },
+    settings: modeSettings({
+      operations: { division: true, multiplication: false, addition: false, subtraction: false },
+      rounded: true,
+    }),
   },
   {
     id: "times-tables",
     emoji: "📋",
     name: "Times Tables",
     tagline: "Multiply by 2–12",
-    override: { operations:{division:false,multiplication:true,addition:false,subtraction:false}, factorMax:12 },
+    settings: modeSettings({
+      operations: { division: false, multiplication: true, addition: false, subtraction: false },
+      factorMax: 12,
+    }),
   },
   {
     id: "add-sprint",
     emoji: "➕",
     name: "Add Sprint",
     tagline: "Back-to-back addition",
-    override: { operations:{division:false,multiplication:false,addition:true,subtraction:false} },
+    settings: modeSettings({
+      operations: { division: false, multiplication: false, addition: true, subtraction: false },
+    }),
   },
   {
     id: "sub-sprint",
     emoji: "➖",
     name: "Sub Sprint",
     tagline: "Back-to-back subtraction",
-    override: { operations:{division:false,multiplication:false,addition:false,subtraction:true} },
+    settings: modeSettings({
+      operations: { division: false, multiplication: false, addition: false, subtraction: true },
+    }),
   },
   {
     id: "add-sub",
     emoji: "⚡",
     name: "Add & Subtract",
     tagline: "Mixed + and − problems",
-    override: { operations:{division:false,multiplication:false,addition:true,subtraction:true} },
+    settings: modeSettings({
+      operations: { division: false, multiplication: false, addition: true, subtraction: true },
+    }),
   },
   {
     id: "full-mix",
     emoji: "🔀",
     name: "Full Mix",
     tagline: "All four operations",
-    override: { operations:{division:true,multiplication:true,addition:true,subtraction:true} },
+    settings: modeSettings({
+      operations: { division: true, multiplication: true, addition: true, subtraction: true },
+    }),
   },
 ];
 
@@ -1126,45 +1164,25 @@ function getTip({ left, right, answer, opSymbol }) {
 }
 
 /* ============================================================
-   PlayControls — CTAs on home + summary (daily / custom seed+start / settings link)
+   CustomGamePanel — start a custom run (current Settings) with an
+   optional seed. Used on both the Home screen and the Summary screen.
    ============================================================ */
-function PlayControls({ onStart, onOpenSettings, initialSeed = "" }) {
-  const [seed, setSeed] = useState(initialSeed);
+function CustomGamePanel({ onStart }) {
+  const [seed, setSeed] = useState("");
 
-  const start = (seedOverride) => {
-    const finalSeed = seedOverride ?? (seed.trim() !== "" ? seed.trim() : randomSeed());
-    onStart(finalSeed);
-  };
+  const start = () => onStart(seed.trim() !== "" ? seed.trim() : randomSeed());
 
   return (
-    <div>
-      <button
-        className="start-btn"
-        style={{ background: "linear-gradient(180deg,#5b8cff,#3f6fe0)", boxShadow: "0 10px 24px rgba(91,140,255,0.35)", marginBottom: 10 }}
-        onClick={() => start(dailySeed())}
-      >
-        🗓️ Today&rsquo;s Challenge
+    <div className="panel">
+      <button className="start-btn" style={{ marginTop: 0, marginBottom: 12 }} onClick={start}>
+        Start Blitz →
       </button>
-      <div className="footer-note" style={{ marginTop: -2, marginBottom: 18 }}>
-        Same problems for everyone today — compare scores!
-      </div>
-
-      <div className="panel">
-        <button className="start-btn" style={{ marginTop: 0, marginBottom: 12 }} onClick={() => start()}>
-          Start Blitz →
-        </button>
-        <input
-          type="text"
-          placeholder="Custom seed (optional)"
-          value={seed}
-          onChange={(e) => setSeed(e.target.value)}
-        />
-      </div>
-
-      <button className="settings-toggle" onClick={onOpenSettings}>
-        <span>⚙️ Settings</span>
-        <span style={{ fontSize: 18 }}>›</span>
-      </button>
+      <input
+        type="text"
+        placeholder="Custom seed (optional)"
+        value={seed}
+        onChange={(e) => setSeed(e.target.value)}
+      />
     </div>
   );
 }
@@ -1173,15 +1191,15 @@ function PlayControls({ onStart, onOpenSettings, initialSeed = "" }) {
    Settings Page  (full-page overlay with back button)
    ============================================================ */
 function SettingsPage({ initialSettings = {}, onBack }) {
-  const initOps = initialSettings.operations ?? { division: true, multiplication: false, addition: false, subtraction: false };
-  const [range, setRange] = useState(initialSettings.range ?? 500);
-  const [rounds, setRounds] = useState(initialSettings.rounds ?? 10);
-  const [timeLimit, setTimeLimit] = useState(initialSettings.timeLimit ?? 10);
-  const [rounded, setRounded] = useState(initialSettings.rounded ?? false);
-  const [noZero, setNoZero] = useState(initialSettings.noZero ?? false);
-  const [parity, setParity] = useState(initialSettings.parity ?? "any");
+  const initOps = initialSettings.operations ?? { ...DEFAULT_SETTINGS.operations };
+  const [range, setRange] = useState(initialSettings.range ?? DEFAULT_SETTINGS.range);
+  const [rounds, setRounds] = useState(initialSettings.rounds ?? DEFAULT_SETTINGS.rounds);
+  const [timeLimit, setTimeLimit] = useState(initialSettings.timeLimit ?? DEFAULT_SETTINGS.timeLimit);
+  const [rounded, setRounded] = useState(initialSettings.rounded ?? DEFAULT_SETTINGS.rounded);
+  const [noZero, setNoZero] = useState(initialSettings.noZero ?? DEFAULT_SETTINGS.noZero);
+  const [parity, setParity] = useState(initialSettings.parity ?? DEFAULT_SETTINGS.parity);
   const [ops, setOps] = useState(initOps);
-  const [teachMode, setTeachMode] = useState(initialSettings.teachMode ?? false);
+  const [teachMode, setTeachMode] = useState(initialSettings.teachMode ?? DEFAULT_SETTINGS.teachMode);
 
   const toggleOp = (key) => {
     setOps((prev) => {
@@ -1194,7 +1212,7 @@ function SettingsPage({ initialSettings = {}, onBack }) {
 
   const save = () => onBack({
     range,
-    rounds: Math.max(1, Math.min(99, parseInt(rounds, 10) || 10)),
+    rounds: Math.max(1, Math.min(99, parseInt(rounds, 10) || DEFAULT_SETTINGS.rounds)),
     timeLimit,
     rounded,
     noZero,
@@ -1301,63 +1319,40 @@ function SettingsPage({ initialSettings = {}, onBack }) {
 }
 
 /* ============================================================
-   Challenges Screen
+   Home Screen
+   ------------------------------------------------------------
+   Game modes are the primary way to play and live right on the home
+   screen. A single "Custom Game" panel covers a free-form run using
+   whatever is configured in Settings.
    ============================================================ */
-function ChallengesScreen({ onSelect, onBack, activeId }) {
+function HomeScreen({ onStartMode, onStartCustom, onOpenSettings, lastMode }) {
   return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
-        <button className="back-btn" onClick={onBack} aria-label="Back">‹</button>
-        <h2 style={{ margin:0, fontSize:22, fontWeight:900 }}>Challenges</h2>
-      </div>
+      <h1 className="title">➗ Math Blitz</h1>
+      <div className="subtitle">Mental math speed drills — beat your best run</div>
+
+      <span className="label" style={{ display: "block", marginBottom: 10 }}>Game Modes</span>
       <div className="challenge-grid">
-        {CHALLENGES.map((ch) => (
+        {GAME_MODES.map((m) => (
           <button
-            key={ch.id}
-            className={"challenge-card" + (ch.id === activeId ? " ch-active" : "")}
-            onClick={() => onSelect(ch)}
+            key={m.id}
+            className={"challenge-card" + (m.id === lastMode ? " ch-active" : "")}
+            onClick={() => onStartMode(m)}
           >
-            <div className="ch-emoji">{ch.emoji}</div>
-            <div className="ch-name">{ch.name}</div>
-            <div className="ch-tagline">{ch.tagline}</div>
+            <div className="ch-emoji">{m.emoji}</div>
+            <div className="ch-name">{m.name}</div>
+            <div className="ch-tagline">{m.tagline}</div>
           </button>
         ))}
       </div>
-    </div>
-  );
-}
 
-/* ============================================================
-   Home Screen  (vertically centred)
-   ============================================================ */
-function HomeScreen({ onStart, onOpenSettings, onOpenChallenges, activeChallenge, onContinueChallenge }) {
-  const activeCh = CHALLENGES.find((c) => c.id === activeChallenge);
-  return (
-    <div className="home-wrap">
-      <div className="home-inner">
-        <h1 className="title">➗ Math Blitz</h1>
-        <div className="subtitle">Division speed drills — beat your best run</div>
+      <span className="label" style={{ display: "block", margin: "20px 0 10px" }}>Custom Game</span>
+      <CustomGamePanel onStart={onStartCustom} />
 
-        {activeCh && (
-          <>
-            <button
-              className="start-btn"
-              style={{ background:"linear-gradient(180deg,#ffb347,#e09020)", boxShadow:"0 10px 24px rgba(255,179,71,0.35)", marginBottom:6 }}
-              onClick={onContinueChallenge}
-            >
-              {activeCh.emoji} {activeCh.name} →
-            </button>
-            <div className="footer-note" style={{ marginTop:-2, marginBottom:14 }}>Last played challenge — tap to go again</div>
-          </>
-        )}
-
-        <button className="settings-toggle" style={{ marginBottom:10 }} onClick={onOpenChallenges}>
-          <span>⚡ Challenges</span>
-          <span style={{ fontSize:18 }}>›</span>
-        </button>
-
-        <PlayControls onStart={onStart} onOpenSettings={onOpenSettings} />
-      </div>
+      <button className="settings-toggle" onClick={onOpenSettings}>
+        <span>⚙️ Settings</span>
+        <span style={{ fontSize: 18 }}>›</span>
+      </button>
     </div>
   );
 }
@@ -1632,30 +1627,9 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 }
 
 /* ============================================================
-   Summary Start Blitz  (seed input + start, no daily / settings)
-   ============================================================ */
-function SummaryStartBlitz({ onStart }) {
-  const [seed, setSeed] = useState("");
-  const start = () => onStart(seed.trim() !== "" ? seed.trim() : randomSeed());
-  return (
-    <div className="panel" style={{ marginBottom: 14 }}>
-      <button className="start-btn" style={{ marginTop: 0, marginBottom: 12 }} onClick={start}>
-        Start Blitz →
-      </button>
-      <input
-        type="text"
-        placeholder="Custom seed (optional)"
-        value={seed}
-        onChange={(e) => setSeed(e.target.value)}
-      />
-    </div>
-  );
-}
-
-/* ============================================================
    Summary Screen
    ============================================================ */
-function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, onReplay, onStart, activeChallenge, onContinueChallenge }) {
+function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, onReplay, onStart, lastMode, onContinueMode }) {
   const accuracy = result.totalDigits > 0
     ? Math.round((result.firstTryDigits / result.totalDigits) * 100)
     : 0;
@@ -1666,7 +1640,7 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
 
   const top5 = (highScores || []).slice(0, 5);
   const isNewBest = prevBest === null || result.score > prevBest;
-  const activeCh = CHALLENGES.find((c) => c.id === activeChallenge);
+  const activeMode = GAME_MODES.find((m) => m.id === lastMode);
 
   return (
     <div>
@@ -1733,19 +1707,20 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
         </div>
       )}
 
-      {activeCh && (
+      {activeMode && (
         <button
           className="start-btn"
           style={{ background:"linear-gradient(180deg,#ffb347,#e09020)", boxShadow:"0 10px 24px rgba(255,179,71,0.35)", marginBottom:10 }}
-          onClick={onContinueChallenge}
+          onClick={onContinueMode}
         >
-          {activeCh.emoji} {activeCh.name} Again →
+          {activeMode.emoji} {activeMode.name} Again →
         </button>
       )}
 
-      <SummaryStartBlitz onStart={onStart} />
+      <span className="label" style={{ display: "block", margin: "4px 0 10px" }}>Custom Game</span>
+      <CustomGamePanel onStart={onStart} />
 
-      <button className="start-btn" style={{ marginBottom: 20, background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text)", boxShadow: "none" }} onClick={onReplay}>
+      <button className="start-btn" style={{ marginTop: 14, marginBottom: 20, background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text)", boxShadow: "none" }} onClick={onReplay}>
         ↻ Replay this seed
       </button>
     </div>
@@ -1760,50 +1735,51 @@ function App() {
   const [screen, setScreen] = useState("home");
   const [prevScreen, setPrevScreen] = useState("home"); // where settings was opened from
   const [seed, setSeed] = useState("");
-  const defaultSettings = {
-    range: 500, rounds: 10, timeLimit: 10, rounded: false, noZero: false, parity: "any",
-    operations: { division: true, multiplication: false, addition: false, subtraction: false },
-    teachMode: false,
-  };
+  // gameSettings = the persisted custom configuration edited on the Settings
+  // page. playSettings = the settings the *current* run is using (a game
+  // mode's own bundle, or gameSettings for a custom run).
   const [gameSettings, setGameSettings] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("math-blitz-settings"));
-      return saved ? { ...defaultSettings, ...saved, operations: { ...defaultSettings.operations, ...(saved.operations ?? {}) } } : defaultSettings;
-    } catch { return defaultSettings; }
+      return saved ? { ...DEFAULT_SETTINGS, ...saved, operations: { ...DEFAULT_SETTINGS.operations, ...(saved.operations ?? {}) } } : DEFAULT_SETTINGS;
+    } catch { return DEFAULT_SETTINGS; }
   });
+  const [playSettings, setPlaySettings] = useState(DEFAULT_SETTINGS);
   const [rounds, setRounds] = useState([]);
   const [result, setResult] = useState(null);
   const [gameId, setGameId] = useState(0);
   const [highScores, setHighScores] = useState(() => loadHighScores());
   const [prevBest, setPrevBest] = useState(null);
   const [currentTs, setCurrentTs] = useState(null);
-  const [activeChallenge, setActiveChallenge] = useState(() => {
-    try { return localStorage.getItem("math-blitz-challenge") || null; } catch { return null; }
+  const [lastMode, setLastMode] = useState(() => {
+    try { return localStorage.getItem("math-blitz-mode") || null; } catch { return null; }
   });
 
+  const launch = (finalSeed, settings) => {
+    setSeed(finalSeed);
+    setPlaySettings(settings);
+    setRounds(buildRounds(finalSeed, settings));
+    setResult(null);
+    setGameId((g) => g + 1);
+    setScreen("game");
+  };
+
+  // Custom run: uses the persisted Settings, not tied to any game mode.
   const startGame = (finalSeed) => {
-    setSeed(finalSeed);
-    setRounds(buildRounds(finalSeed, gameSettings));
-    setResult(null);
-    setGameId((g) => g + 1);
-    setScreen("game");
+    setLastMode(null);
+    launch(finalSeed, gameSettings);
   };
 
-  const startChallenge = (ch) => {
-    setActiveChallenge(ch.id);
-    try { localStorage.setItem("math-blitz-challenge", ch.id); } catch {}
-    const merged = { ...gameSettings, ...ch.override };
-    const finalSeed = randomSeed();
-    setSeed(finalSeed);
-    setRounds(buildRounds(finalSeed, merged));
-    setResult(null);
-    setGameId((g) => g + 1);
-    setScreen("game");
+  // Game mode: uses the mode's own self-contained settings bundle.
+  const startMode = (mode) => {
+    setLastMode(mode.id);
+    try { localStorage.setItem("math-blitz-mode", mode.id); } catch {}
+    launch(randomSeed(), mode.settings);
   };
 
-  const continueChallenge = () => {
-    const ch = CHALLENGES.find((c) => c.id === activeChallenge);
-    if (ch) startChallenge(ch);
+  const continueMode = () => {
+    const mode = GAME_MODES.find((m) => m.id === lastMode);
+    if (mode) startMode(mode);
   };
 
   const finishGame = (res) => {
@@ -1816,7 +1792,7 @@ function App() {
       score: res.score,
       accuracy: acc,
       perfectRounds: res.perfectRounds,
-      rounds: gameSettings.rounds,
+      rounds: playSettings.rounds,
       seed,
       date: new Date().toLocaleDateString(),
       ts,
@@ -1830,7 +1806,7 @@ function App() {
   };
 
   const replaySeed = () => {
-    setRounds(buildRounds(seed, gameSettings));
+    setRounds(buildRounds(seed, playSettings));
     setResult(null);
     setGameId((g) => g + 1);
     setScreen("game");
@@ -1850,15 +1826,12 @@ function App() {
   if (screen === "settings-page")
     return <SettingsPage initialSettings={gameSettings} onBack={closeSettings} />;
 
-  if (screen === "challenges")
-    return <ChallengesScreen onSelect={startChallenge} onBack={() => setScreen("home")} activeId={activeChallenge} />;
-
   if (screen === "game")
     return (
       <GameScreen
         key={gameId}
         seed={seed}
-        settings={gameSettings}
+        settings={playSettings}
         rounds={rounds}
         onFinish={finishGame}
       />
@@ -1868,25 +1841,24 @@ function App() {
     return (
       <SummaryScreen
         seed={seed}
-        settings={gameSettings}
+        settings={playSettings}
         result={result}
         highScores={highScores}
         prevBest={prevBest}
         currentTs={currentTs}
         onReplay={replaySeed}
         onStart={startGame}
-        activeChallenge={activeChallenge}
-        onContinueChallenge={continueChallenge}
+        lastMode={lastMode}
+        onContinueMode={continueMode}
       />
     );
 
   return (
     <HomeScreen
-      onStart={startGame}
+      onStartMode={startMode}
+      onStartCustom={startGame}
       onOpenSettings={openSettings}
-      onOpenChallenges={() => setScreen("challenges")}
-      activeChallenge={activeChallenge}
-      onContinueChallenge={continueChallenge}
+      lastMode={lastMode}
     />
   );
 }

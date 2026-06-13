@@ -1278,7 +1278,8 @@ function HomeScreen({ onStartMode, onOpenSettings, lastMode }) {
   const selectedMode = GAME_MODES.find((m) => m.id === selectedId) || GAME_MODES[0];
 
   return (
-    <div>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center" }}>
+    <div style={{ width: "100%" }}>
       <h1 className="title">➗ Math Blitz</h1>
       <div className="subtitle">Mental math speed drills — beat your best run</div>
 
@@ -1315,6 +1316,7 @@ function HomeScreen({ onStartMode, onOpenSettings, lastMode }) {
         <span>⚙️ Settings</span>
         <span style={{ fontSize: 18 }}>›</span>
       </button>
+    </div>
     </div>
   );
 }

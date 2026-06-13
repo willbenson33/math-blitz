@@ -1746,11 +1746,6 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
   return (
     <div>
       <h1 className="title">Run Complete</h1>
-      <div className="subtitle" style={{ marginBottom: 12 }}>
-        {result.perfectRounds === settings.rounds
-          ? "🔥 Flawless! Every round perfect. 🔥"
-          : "Nice work — try to beat it."}
-      </div>
 
       <div className="panel" style={{ padding: 14, marginBottom: 12 }}>
         <div className="scard" style={{ background: "transparent", border: "none", padding: 0 }}>

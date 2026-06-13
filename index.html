@@ -866,25 +866,26 @@ const GAME_MODES = [
 ];
 
 /* ============================================================
-   High-score persistence  (scoped per game mode)
+   High-score persistence  (scoped per game mode AND difficulty)
+   Hard mode keeps its own leaderboard, separate from normal runs.
    Each record: { score, accuracy, perfectRounds, rounds, seed, date, ts }
    ============================================================ */
 const MAX_STORED = 20;
 
-function scoresKey(modeId) {
-  return "math-blitz-scores-" + (modeId || "default");
+function scoresKey(modeId, hard) {
+  return "math-blitz-scores-" + (modeId || "default") + (hard ? "-hard" : "");
 }
 
-function loadHighScores(modeId) {
-  try { return JSON.parse(localStorage.getItem(scoresKey(modeId))) || []; }
+function loadHighScores(modeId, hard) {
+  try { return JSON.parse(localStorage.getItem(scoresKey(modeId, hard))) || []; }
   catch { return []; }
 }
 
-function insertHighScore(record, existing, modeId) {
+function insertHighScore(record, existing, modeId, hard) {
   const updated = [...existing, record]
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_STORED);
-  try { localStorage.setItem(scoresKey(modeId), JSON.stringify(updated)); } catch {}
+  try { localStorage.setItem(scoresKey(modeId, hard), JSON.stringify(updated)); } catch {}
   return updated;
 }
 
@@ -1903,7 +1904,8 @@ function App() {
 
   const finishGame = (res) => {
     if (res === null) { setScreen("home"); return; }
-    const existing = loadHighScores(lastMode);
+    const hard = !!playSettings.hardMode;
+    const existing = loadHighScores(lastMode, hard);
     const best = existing.length > 0 ? existing[0].score : null;
     const ts = Date.now();
     const acc = res.totalDigits > 0 ? Math.round((res.firstTryDigits / res.totalDigits) * 100) : 0;
@@ -1919,7 +1921,7 @@ function App() {
       date: new Date().toLocaleDateString(),
       ts,
     };
-    const updated = insertHighScore(record, existing, lastMode);
+    const updated = insertHighScore(record, existing, lastMode, hard);
     setHighScores(updated);
     setPrevBest(best);
     setCurrentTs(ts);

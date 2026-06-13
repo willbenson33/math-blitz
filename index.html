@@ -1184,29 +1184,6 @@ function getTip({ left, right, answer, opSymbol }) {
   ]);
 }
 
-/* ============================================================
-   CustomGamePanel — start a custom run (current Settings) with an
-   optional seed. Used on both the Home screen and the Summary screen.
-   ============================================================ */
-function CustomGamePanel({ onStart }) {
-  const [seed, setSeed] = useState("");
-
-  const start = () => onStart(seed.trim() !== "" ? seed.trim() : randomSeed());
-
-  return (
-    <div className="panel">
-      <button className="start-btn" style={{ marginTop: 0, marginBottom: 12 }} onClick={start}>
-        Start Blitz →
-      </button>
-      <input
-        type="text"
-        placeholder="Custom seed (optional)"
-        value={seed}
-        onChange={(e) => setSeed(e.target.value)}
-      />
-    </div>
-  );
-}
 
 /* ============================================================
    Settings Page  (full-page overlay with back button)
@@ -1292,16 +1269,12 @@ function SettingsPage({ initialSettings = {}, onBack }) {
 
 /* ============================================================
    Home Screen
-   ------------------------------------------------------------
-   Game modes are the primary way to play and live right on the home
-   screen. A single "Custom Game" panel covers a free-form run using
-   whatever is configured in Settings.
    ============================================================ */
-function HomeScreen({ onStartMode, onStartCustom, onOpenSettings, lastMode }) {
-  // Default the dropdown to the last mode played, otherwise the first mode.
+function HomeScreen({ onStartMode, onOpenSettings, lastMode }) {
   const [selectedId, setSelectedId] = useState(
     () => (GAME_MODES.some((m) => m.id === lastMode) ? lastMode : GAME_MODES[0].id)
   );
+  const [seed, setSeed] = useState("");
   const selectedMode = GAME_MODES.find((m) => m.id === selectedId) || GAME_MODES[0];
 
   return (
@@ -1322,17 +1295,21 @@ function HomeScreen({ onStartMode, onStartCustom, onOpenSettings, lastMode }) {
             </option>
           ))}
         </select>
+        <input
+          type="text"
+          placeholder="Seed (optional — leave blank for random)"
+          value={seed}
+          onChange={(e) => setSeed(e.target.value)}
+          style={{ marginTop: 12 }}
+        />
         <button
           className="start-btn"
-          style={{ marginTop: 14 }}
-          onClick={() => onStartMode(selectedMode)}
+          style={{ marginTop: 12 }}
+          onClick={() => onStartMode(selectedMode, seed.trim() || null)}
         >
           {selectedMode.emoji} Start {selectedMode.name} →
         </button>
       </div>
-
-      <span className="label" style={{ display: "block", margin: "20px 0 10px" }}>Custom Game</span>
-      <CustomGamePanel onStart={onStartCustom} />
 
       <button className="settings-toggle" onClick={onOpenSettings}>
         <span>⚙️ Settings</span>
@@ -1614,7 +1591,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 /* ============================================================
    Summary Screen
    ============================================================ */
-function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, onReplay, onStart, lastMode, onContinueMode }) {
+function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, onReplay, lastMode, onContinueMode }) {
   const accuracy = result.totalDigits > 0
     ? Math.round((result.firstTryDigits / result.totalDigits) * 100)
     : 0;
@@ -1702,9 +1679,6 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
         </button>
       )}
 
-      <span className="label" style={{ display: "block", margin: "4px 0 10px" }}>Custom Game</span>
-      <CustomGamePanel onStart={onStart} />
-
       <button className="start-btn" style={{ marginTop: 14, marginBottom: 20, background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text)", boxShadow: "none" }} onClick={onReplay}>
         ↻ Replay this seed
       </button>
@@ -1749,17 +1723,10 @@ function App() {
     setScreen("game");
   };
 
-  // Custom run: uses the persisted Settings, not tied to any game mode.
-  const startGame = (finalSeed) => {
-    setLastMode(null);
-    launch(finalSeed, gameSettings);
-  };
-
-  // Game mode: uses the mode's own self-contained settings bundle.
-  const startMode = (mode) => {
+  const startMode = (mode, seedOverride = null) => {
     setLastMode(mode.id);
     try { localStorage.setItem("math-blitz-mode", mode.id); } catch {}
-    launch(randomSeed(), mode.settings);
+    launch(seedOverride ?? randomSeed(), mode.settings);
   };
 
   const continueMode = () => {
@@ -1832,7 +1799,6 @@ function App() {
         prevBest={prevBest}
         currentTs={currentTs}
         onReplay={replaySeed}
-        onStart={startGame}
         lastMode={lastMode}
         onContinueMode={continueMode}
       />
@@ -1841,7 +1807,6 @@ function App() {
   return (
     <HomeScreen
       onStartMode={startMode}
-      onStartCustom={startGame}
       onOpenSettings={openSettings}
       lastMode={lastMode}
     />

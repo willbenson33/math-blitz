@@ -762,7 +762,7 @@ function generatePercent(rng, s) {
   const pctMin = s.percentMin ?? 1;
   const pctMax = s.percentMax ?? 99;
   const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
-  const denoms = [4, 5, 8, 10, 20, 25, 50, 100];
+  const denoms = [4, 5, 8, 20, 25, 50]; // never 10 or 100 — those are too trivial
   for (let i = 0; i < 6000; i++) {
     const den = denoms[Math.floor(rng() * denoms.length)];
     const step = 100 / gcd(100, den);              // percent must be a multiple of this

@@ -534,16 +534,6 @@
   .lb-main { flex: 1; min-width: 0; }
   .lb-score-line { display: flex; align-items: center; gap: 8px; }
   .lb-score { font-size: 17px; font-weight: 900; }
-  .lb-badge {
-    font-size: 10px; font-weight: 800;
-    color: var(--amber);
-    background: rgba(255,179,71,0.14);
-    border: 1px solid rgba(255,179,71,0.4);
-    border-radius: 6px;
-    padding: 1px 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
   .lb-stats { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
   /* ---------- Challenges ---------- */
@@ -646,10 +636,6 @@ function randomSeed() {
    ============================================================ */
 
 function passesFilters(left, right, answer, s, op) {
-  // Hard mode: drop any problem whose operands are multiples of 10. Those round
-  // numbers collapse to trivial place-value shifts (×10, ÷10), so removing them
-  // forces genuine mental arithmetic.
-  if (s.hardMode && (left % 10 === 0 || right % 10 === 0)) return false;
   if (s.noZero && String(answer).indexOf("0") !== -1) return false;
   if (s.parity === "odd"  && (left % 2 === 0 || right % 2 === 0)) return false;
   if (s.parity === "even" && (left % 2 !== 0 || right % 2 !== 0)) return false;
@@ -786,7 +772,6 @@ const DEFAULT_SETTINGS = {
   noZero: false,
   parity: "any",
   operations: { division: true, multiplication: false, addition: false, subtraction: false },
-  hardMode: false,
 };
 
 // Build a full settings object from the defaults plus a mode's specifics.
@@ -847,26 +832,25 @@ const GAME_MODES = [
 ];
 
 /* ============================================================
-   High-score persistence  (scoped per game mode AND difficulty)
-   Hard mode keeps its own leaderboard, separate from normal runs.
+   High-score persistence  (scoped per game mode)
    Each record: { score, accuracy, perfectRounds, rounds, seed, date, ts }
    ============================================================ */
 const MAX_STORED = 20;
 
-function scoresKey(modeId, hard) {
-  return "math-blitz-scores-" + (modeId || "default") + (hard ? "-hard" : "");
+function scoresKey(modeId) {
+  return "math-blitz-scores-" + (modeId || "default");
 }
 
-function loadHighScores(modeId, hard) {
-  try { return JSON.parse(localStorage.getItem(scoresKey(modeId, hard))) || []; }
+function loadHighScores(modeId) {
+  try { return JSON.parse(localStorage.getItem(scoresKey(modeId))) || []; }
   catch { return []; }
 }
 
-function insertHighScore(record, existing, modeId, hard) {
+function insertHighScore(record, existing, modeId) {
   const updated = [...existing, record]
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_STORED);
-  try { localStorage.setItem(scoresKey(modeId, hard), JSON.stringify(updated)); } catch {}
+  try { localStorage.setItem(scoresKey(modeId), JSON.stringify(updated)); } catch {}
   return updated;
 }
 
@@ -876,7 +860,7 @@ const basePoints = (pos) => (pos + 1) * 5;
 /* ============================================================
    Home Screen
    ============================================================ */
-function HomeScreen({ onStartMode, lastMode, hardMode, onToggleHardMode, theme, onToggleTheme }) {
+function HomeScreen({ onStartMode, lastMode, theme, onToggleTheme }) {
   const [selectedId, setSelectedId] = useState(
     () => (GAME_MODES.some((m) => m.id === lastMode) ? lastMode : GAME_MODES[0].id)
   );
@@ -951,14 +935,6 @@ function HomeScreen({ onStartMode, lastMode, hardMode, onToggleHardMode, theme, 
         >
           Start →
         </button>
-      </div>
-
-      <div className="toggle-row" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "var(--radius)", padding: "14px 18px" }}>
-        <div>
-          <div className="tlabel">🔥 Hard Mode</div>
-          <div className="thint">No multiples of 10.</div>
-        </div>
-        <button className={"switch" + (hardMode ? " on" : "")} onClick={onToggleHardMode} aria-pressed={hardMode} aria-label="Hard Mode" />
       </div>
     </div>
     </div>
@@ -1329,7 +1305,6 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
               <div className="lb-main">
                 <div className="lb-score-line">
                   <span className="lb-score">{entry.score}</span>
-                  {entry.hardMode && <span className="lb-badge">🔥 Hard</span>}
                 </div>
                 <div className="lb-stats">
                   {entry.accuracy}% acc
@@ -1364,9 +1339,6 @@ function App() {
   // screen: "home" | "game" | "summary"
   const [screen, setScreen] = useState("home");
   const [seed, setSeed] = useState("");
-  const [hardMode, setHardMode] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("math-blitz-hard")) ?? false; } catch { return false; }
-  });
   const [playSettings, setPlaySettings] = useState(DEFAULT_SETTINGS);
   const [rounds, setRounds] = useState([]);
   const [result, setResult] = useState(null);
@@ -1402,18 +1374,10 @@ function App() {
     setScreen("game");
   };
 
-  const toggleHardMode = () => {
-    setHardMode((v) => {
-      const next = !v;
-      try { localStorage.setItem("math-blitz-hard", JSON.stringify(next)); } catch {}
-      return next;
-    });
-  };
-
   const startMode = (mode, seedOverride = null) => {
     setLastMode(mode.id);
     try { localStorage.setItem("math-blitz-mode", mode.id); } catch {}
-    launch(seedOverride ?? randomSeed(), { ...mode.settings, hardMode });
+    launch(seedOverride ?? randomSeed(), { ...mode.settings });
   };
 
   const playAgain = () => {
@@ -1424,8 +1388,7 @@ function App() {
 
   const finishGame = (res) => {
     if (res === null) { setScreen("home"); return; }
-    const hard = !!playSettings.hardMode;
-    const existing = loadHighScores(lastMode, hard);
+    const existing = loadHighScores(lastMode);
     const best = existing.length > 0 ? existing[0].score : null;
     const ts = Date.now();
     const acc = res.totalDigits > 0 ? Math.round((res.firstTryDigits / res.totalDigits) * 100) : 0;
@@ -1436,12 +1399,11 @@ function App() {
       rounds: playSettings.rounds,
       firstTryDigits: res.firstTryDigits,
       totalDigits: res.totalDigits,
-      hardMode: !!playSettings.hardMode,
       seed,
       date: new Date().toLocaleDateString(),
       ts,
     };
-    const updated = insertHighScore(record, existing, lastMode, hard);
+    const updated = insertHighScore(record, existing, lastMode);
     setHighScores(updated);
     setPrevBest(best);
     setCurrentTs(ts);
@@ -1479,8 +1441,6 @@ function App() {
     <HomeScreen
       onStartMode={startMode}
       lastMode={lastMode}
-      hardMode={hardMode}
-      onToggleHardMode={toggleHardMode}
       theme={theme}
       onToggleTheme={toggleTheme}
     />

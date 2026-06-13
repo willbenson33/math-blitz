@@ -1602,7 +1602,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 /* ============================================================
    Summary Screen
    ============================================================ */
-function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, lastMode, onAgain }) {
+function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, lastMode, onAgain, onQuit }) {
   const accuracy = result.totalDigits > 0
     ? Math.round((result.firstTryDigits / result.totalDigits) * 100)
     : 0;
@@ -1678,8 +1678,11 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
         </div>
       )}
 
-      <button className="start-btn" style={{ marginTop: 4, marginBottom: 20 }} onClick={onAgain}>
+      <button className="start-btn" style={{ marginTop: 4, marginBottom: 10 }} onClick={onAgain}>
         {activeMode ? `${activeMode.emoji} ${activeMode.name} Again →` : "Play Again →"}
+      </button>
+      <button className="start-btn" style={{ marginBottom: 20, background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--muted)", boxShadow: "none" }} onClick={onQuit}>
+        Quit
       </button>
     </div>
   );
@@ -1793,6 +1796,7 @@ function App() {
         currentTs={currentTs}
         lastMode={lastMode}
         onAgain={playAgain}
+        onQuit={() => setScreen("home")}
       />
     );
 

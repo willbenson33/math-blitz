@@ -29,6 +29,18 @@
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   }
 
+  :root[data-theme="light"] {
+    --bg: #eef1f8;
+    --bg-2: #ffffff;
+    --panel: #ffffff;
+    --panel-2: #eef2fa;
+    --text: #18223a;
+    --muted: #5c6b8a;
+    --accent: #3f6fe0;
+    --accent-2: #5b8cff;
+    --shadow: 0 10px 30px rgba(40, 60, 120, 0.14);
+  }
+
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
   html, body {
@@ -42,6 +54,30 @@
     font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
+
+  html[data-theme="light"] body {
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #dde6fb 0%, transparent 60%),
+      var(--bg);
+  }
+
+  .theme-toggle {
+    position: fixed;
+    top: 16px; right: 16px;
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    border: 1px solid rgba(127,127,127,0.22);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .08s ease, background .15s ease;
+  }
+  .theme-toggle:active { transform: scale(0.94); }
 
   #root {
     max-width: 540px;
@@ -1201,7 +1237,7 @@ function getTip({ left, right, answer, opSymbol }) {
 /* ============================================================
    Home Screen
    ============================================================ */
-function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode }) {
+function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode, theme, onToggleTheme }) {
   const [selectedId, setSelectedId] = useState(
     () => (GAME_MODES.some((m) => m.id === lastMode) ? lastMode : GAME_MODES[0].id)
   );
@@ -1210,6 +1246,13 @@ function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode }) {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center" }}>
+    <button
+      className="theme-toggle"
+      onClick={onToggleTheme}
+      aria-label="Toggle light and dark mode"
+    >
+      {theme === "light" ? "🌙" : "☀️"}
+    </button>
     <div style={{ width: "100%" }}>
       <h1 className="title">⚡ Math Blitz ⚡</h1>
       <div className="subtitle">Mental math speed drills — beat your best run</div>
@@ -1665,6 +1708,21 @@ function App() {
   const [lastMode, setLastMode] = useState(() => {
     try { return localStorage.getItem("math-blitz-mode") || null; } catch { return null; }
   });
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem("math-blitz-theme") || "dark"; } catch { return "dark"; }
+  });
+
+  useEffect(() => {
+    try { document.documentElement.setAttribute("data-theme", theme); } catch {}
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((t) => {
+      const next = t === "dark" ? "light" : "dark";
+      try { localStorage.setItem("math-blitz-theme", next); } catch {}
+      return next;
+    });
+  };
 
   const launch = (finalSeed, settings) => {
     setSeed(finalSeed);
@@ -1750,6 +1808,8 @@ function App() {
       lastMode={lastMode}
       teachMode={teachMode}
       onToggleTeachMode={toggleTeachMode}
+      theme={theme}
+      onToggleTheme={toggleTheme}
     />
   );
 }

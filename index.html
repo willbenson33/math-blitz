@@ -341,6 +341,14 @@
     font-size: 40px; font-weight: 900;
     transition: border-color .12s ease, background .12s ease;
   }
+  .slot-dot {
+    align-self: flex-end;
+    font-size: 44px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--accent-2);
+    margin: 0 -2px 8px;
+  }
   .slot.active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,140,255,0.25); }
   .slot.locked { background: rgba(40,209,124,0.16); border-color: var(--green); color: var(--green); }
   .slot.locked.first { animation: lockPop .28s ease; }
@@ -632,7 +640,27 @@ function passesFilters(left, right, answer, s, op) {
   return true;
 }
 
+function generateDecimalDivision(rng, s) {
+  const max = s.range;
+  // Divisors whose only prime factors are 2 and 5 produce quotients that
+  // terminate at one decimal place (e.g. ÷2 → .5, ÷5 → .2). The reject test
+  // below keeps every answer to a single decimal digit; whole-number answers
+  // are still allowed, so the mode mixes decimals with the occasional integer.
+  const divisors = [2, 4, 5, 8, 10];
+  for (let i = 0; i < 6000; i++) {
+    const right = divisors[Math.floor(rng() * divisors.length)];
+    const left = randInt(rng, right, max);
+    if ((left * 10) % right !== 0) continue;            // must terminate at 1 decimal place
+    const answer = Math.round((left * 10) / right) / 10;
+    if (answer < 1) continue;
+    if (passesFilters(left, right, answer, s, "division"))
+      return { left, opSymbol: "÷", right, answer };
+  }
+  return { left: 15, opSymbol: "÷", right: 2, answer: 7.5 };
+}
+
 function generateDivision(rng, s) {
+  if (s.decimals) return generateDecimalDivision(rng, s);
   const max = s.range;
   const dMin = s.divisorMin ?? 2;
   const dMax = s.divisorMax != null
@@ -778,6 +806,16 @@ const GAME_MODES = [
       operations: { division: false, multiplication: true, addition: false, subtraction: false },
       factorAMin: 11, factorAMax: 20,
       factorBMin: 1, factorBMax: 20,
+    }),
+  },
+  {
+    id: "decimal-div",
+    emoji: "🔢",
+    name: "Decimal Division",
+    tagline: "Quotients that can be decimals",
+    settings: modeSettings({
+      operations: { division: true, multiplication: false, addition: false, subtraction: false },
+      decimals: true,
     }),
   },
   {
@@ -1360,7 +1398,11 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const stats = useRef({ firstTryDigits: 0, totalDigits: 0, perfectRounds: 0 });
 
   const problem = rounds[roundIdx];
-  const answerStr = String(problem.answer);
+  // Decimal answers are typed as plain digits; the decimal point is shown
+  // positionally between the slots rather than entered on the numpad.
+  const rawAnswerStr = String(problem.answer);
+  const dotIndex = rawAnswerStr.indexOf(".");
+  const answerStr = dotIndex === -1 ? rawAnswerStr : rawAnswerStr.replace(".", "");
   const pos = locked.length;
 
   const resetRoundState = useCallback(() => {
@@ -1510,6 +1552,12 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   // render answer slots
   const slots = [];
   for (let i = 0; i < answerStr.length; i++) {
+    // show the decimal point in its fixed position between digit slots
+    if (i === dotIndex) {
+      slots.push(
+        <div key={"dot" + i} className="slot-dot" aria-hidden="true">.</div>
+      );
+    }
     let cls = "slot";
     let content = "";
     if (i < locked.length) {

@@ -270,17 +270,20 @@
     justify-content: space-between;
     margin-bottom: 6px;
   }
-  .stat { text-align: center; }
+  .stat { text-align: center; position: relative; }
   .stat .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
   .stat .v { font-size: 22px; font-weight: 900; }
   .score-pop { animation: pop .25s ease; }
   @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(1.35); color:var(--green)} 100%{transform:scale(1)} }
 
   .time-bonus {
+    position: absolute;
+    left: 0; right: 0;
+    top: 100%;
     font-size: 13px;
     font-weight: 800;
     color: var(--amber);
-    min-height: 18px;
+    pointer-events: none;
     animation: bonusFly .9s ease forwards;
   }
   @keyframes bonusFly {
@@ -404,30 +407,30 @@
   /* ---------- Summary ---------- */
   .big-score {
     text-align: center;
-    font-size: 64px;
+    font-size: 48px;
     font-weight: 900;
-    margin: 8px 0 0;
+    margin: 2px 0 0;
     background: linear-gradient(90deg, var(--green), var(--amber));
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
   .scard {
     background: var(--panel-2);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 14px;
-    padding: 16px;
+    padding: 10px;
     text-align: center;
   }
   .scard .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-  .scard .v { font-size: 26px; font-weight: 900; margin-top: 4px; }
+  .scard .v { font-size: 22px; font-weight: 900; margin-top: 2px; }
 
   .seed-line {
     display: flex; align-items: center; gap: 10px;
     background: var(--panel-2);
     border: 1px dashed rgba(255,255,255,0.15);
     border-radius: 12px;
-    padding: 12px 14px;
-    margin-top: 14px;
+    padding: 9px 12px;
+    margin-top: 10px;
     font-size: 14px;
   }
   .seed-line .code {
@@ -462,6 +465,12 @@
   @keyframes tipIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
   .tip-icon { font-size: 30px; text-align: center; margin-bottom: 10px; }
   .tip-text { font-size: 17px; line-height: 1.55; color: var(--text); font-weight: 500; }
+
+  :root[data-theme="light"] .tip-card {
+    background: linear-gradient(180deg, #eaf0ff, #dde7fb);
+    border-color: rgba(63,111,224,0.35);
+    box-shadow: 0 0 0 3px rgba(63,111,224,0.12), var(--shadow);
+  }
 
   .settings-toggle {
     display: flex;
@@ -498,10 +507,10 @@
   /* ---------- High-score leaderboard ---------- */
   .score-banner {
     text-align: center;
-    padding: 14px 18px;
+    padding: 10px 14px;
     border-radius: 14px;
-    margin-bottom: 14px;
-    font-size: 17px;
+    margin-bottom: 10px;
+    font-size: 15px;
     font-weight: 800;
   }
   .score-banner.best {
@@ -1697,13 +1706,13 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
   return (
     <div>
       <h1 className="title">Run Complete</h1>
-      <div className="subtitle">
+      <div className="subtitle" style={{ marginBottom: 12 }}>
         {result.perfectRounds === settings.rounds
           ? "🔥 Flawless! Every round perfect. 🔥"
           : "Nice work — try to beat it."}
       </div>
 
-      <div className="panel">
+      <div className="panel" style={{ padding: 14, marginBottom: 12 }}>
         <div className="scard" style={{ background: "transparent", border: "none", padding: 0 }}>
           <div className="k">Total Score</div>
           <div className="big-score">{result.score}</div>
@@ -1757,10 +1766,10 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
         </div>
       )}
 
-      <button className="start-btn" style={{ marginTop: 4, marginBottom: 10 }} onClick={onAgain}>
+      <button className="start-btn" style={{ marginTop: 2, marginBottom: 8, padding: 14 }} onClick={onAgain}>
         {activeMode ? `${activeMode.emoji} ${activeMode.name} Again →` : "Play Again →"}
       </button>
-      <button className="start-btn" style={{ marginBottom: 20, background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--muted)", boxShadow: "none" }} onClick={onQuit}>
+      <button className="start-btn" style={{ marginBottom: 16, padding: 14, background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--muted)", boxShadow: "none" }} onClick={onQuit}>
         Quit
       </button>
     </div>

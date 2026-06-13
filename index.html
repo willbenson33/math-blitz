@@ -1334,6 +1334,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [revealAnswer, setRevealAnswer] = useState(false);
   const [tipText, setTipText] = useState(null);
   const [timeBonusDisplay, setTimeBonusDisplay] = useState(null);
+  const [paused, setPaused] = useState(false);
 
   // per-round bookkeeping (refs so timers/handlers see latest)
   const retriedPos = useRef(new Set());   // positions that needed a retry
@@ -1404,6 +1405,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   // timer
   useEffect(() => {
     if (!settings.timeLimit) return;
+    if (paused) return;
     if (advancing.current) return;
     if (revealing.current) return;
     if (timeLeft <= 0) {
@@ -1430,6 +1432,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   };
 
   const handleDigit = (d) => {
+    if (paused) return;
     if (advancing.current) return;
     if (revealing.current) return;
     const expected = answerStr[pos];
@@ -1565,6 +1568,14 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
             Got it →
           </button>
         </div>
+      ) : paused ? (
+        <div style={{ textAlign: "center", padding: "32px 0" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>⏸</div>
+          <div style={{ color: "var(--muted)", fontSize: 15, marginBottom: 24 }}>Paused — no points for this question</div>
+          <button className="start-btn" onClick={() => { roundPerfect.current = false; setPaused(false); }}>
+            Resume →
+          </button>
+        </div>
       ) : (
         <div className="numpad" style={revealAnswer ? { opacity: 0.35, pointerEvents: "none" } : undefined}>
           {keys.map((k) => {
@@ -1581,7 +1592,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
           >
             0
           </button>
-          <button className="key wide action" onClick={() => onFinish(null)}>Quit</button>
+          <button className="key wide action" onClick={() => { roundPerfect.current = false; setPaused(true); }}>⏸</button>
         </div>
       )}
     </div>
@@ -1591,7 +1602,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 /* ============================================================
    Summary Screen
    ============================================================ */
-function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, onReplay, lastMode, onContinueMode }) {
+function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs, lastMode, onAgain }) {
   const accuracy = result.totalDigits > 0
     ? Math.round((result.firstTryDigits / result.totalDigits) * 100)
     : 0;
@@ -1667,18 +1678,8 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
         </div>
       )}
 
-      {activeMode && (
-        <button
-          className="start-btn"
-          style={{ background:"linear-gradient(180deg,#ffb347,#e09020)", boxShadow:"0 10px 24px rgba(255,179,71,0.35)", marginBottom:10 }}
-          onClick={onContinueMode}
-        >
-          {activeMode.emoji} {activeMode.name} Again →
-        </button>
-      )}
-
-      <button className="start-btn" style={{ marginTop: 14, marginBottom: 20, background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text)", boxShadow: "none" }} onClick={onReplay}>
-        ↻ Replay this seed
+      <button className="start-btn" style={{ marginTop: 4, marginBottom: 20 }} onClick={onAgain}>
+        {activeMode ? `${activeMode.emoji} ${activeMode.name} Again →` : "Play Again →"}
       </button>
     </div>
   );
@@ -1727,9 +1728,10 @@ function App() {
     launch(seedOverride ?? randomSeed(), mode.settings);
   };
 
-  const continueMode = () => {
+  const playAgain = () => {
     const mode = GAME_MODES.find((m) => m.id === lastMode);
     if (mode) startMode(mode);
+    else setScreen("home");
   };
 
   const finishGame = (res) => {
@@ -1753,13 +1755,6 @@ function App() {
     setCurrentTs(ts);
     setResult(res);
     setScreen("summary");
-  };
-
-  const replaySeed = () => {
-    setRounds(buildRounds(seed, playSettings));
-    setResult(null);
-    setGameId((g) => g + 1);
-    setScreen("game");
   };
 
   const openSettings = () => {
@@ -1796,9 +1791,8 @@ function App() {
         highScores={highScores}
         prevBest={prevBest}
         currentTs={currentTs}
-        onReplay={replaySeed}
         lastMode={lastMode}
-        onContinueMode={continueMode}
+        onAgain={playAgain}
       />
     );
 

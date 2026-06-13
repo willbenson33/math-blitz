@@ -759,18 +759,33 @@ function generatePercent(rng, s) {
   // percent it equals. Denominators are chosen so the percent is a whole number;
   // the percent range comes from the mode (1–99 or 1–999). In the larger range
   // the numerator is frequently bigger than the denominator (percent > 100%).
+  // When s.bigFraction is set, the fraction is scaled up so the printed numbers
+  // span 2–4 digits (the percent is unchanged) to give bigger numbers to work with.
   const pctMin = s.percentMin ?? 1;
   const pctMax = s.percentMax ?? 99;
   const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
   const denoms = [4, 5, 8, 20, 25, 50]; // never 10 or 100 — those are too trivial
+  const isPow10 = (x) => x === 10 || x === 100 || x === 1000 || x === 10000;
   for (let i = 0; i < 6000; i++) {
-    const den = denoms[Math.floor(rng() * denoms.length)];
-    const step = 100 / gcd(100, den);              // percent must be a multiple of this
+    const den0 = denoms[Math.floor(rng() * denoms.length)];
+    const step = 100 / gcd(100, den0);             // percent must be a multiple of this
     const lo = Math.ceil(pctMin / step), hi = Math.floor(pctMax / step);
     if (hi < lo) continue;
     const percent = randInt(rng, lo, hi) * step;
-    const num = (percent * den) / 100;             // whole numerator by construction
-    if (num < 1) continue;
+    const num0 = (percent * den0) / 100;           // whole numerator by construction
+    if (num0 < 1) continue;
+
+    let num = num0, den = den0;
+    if (s.bigFraction) {
+      const digits = randInt(rng, 2, 4);           // target denominator size: 2–4 digits
+      const mLo = Math.max(2, Math.ceil((10 ** (digits - 1)) / den0));
+      const mHi = Math.floor((10 ** digits - 1) / den0);
+      if (mHi < mLo) continue;
+      const m = randInt(rng, mLo, mHi);
+      num = num0 * m;
+      den = den0 * m;
+      if (isPow10(num) || isPow10(den)) continue;  // keep it non-trivial
+    }
     return { left: num, opSymbol: "/", right: den, answer: percent };
   }
   return { left: 3, opSymbol: "/", right: 4, answer: 75 };
@@ -932,7 +947,7 @@ const GAME_MODES = [
     tagline: "Fraction → percent",
     settings: modeSettings({
       operations: { division: false, multiplication: true, addition: false, subtraction: false },
-      percent: true, percentMin: 1, percentMax: 99,
+      percent: true, percentMin: 1, percentMax: 99, bigFraction: true,
     }),
   },
   {

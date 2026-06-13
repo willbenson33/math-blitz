@@ -586,14 +586,6 @@ function generateDivision(rng, s) {
 
 function generateMultiplication(rng, s) {
   const max = s.range;
-  if (s.tableOf) {
-    const table = s.tableOf;
-    const other = randInt(rng, 2, 12);
-    const answer = table * other;
-    return rng() < 0.5
-      ? { left: table, opSymbol: "×", right: other, answer }
-      : { left: other, opSymbol: "×", right: table, answer };
-  }
   const fMax = s.factorMax ?? Math.max(2, Math.floor(Math.sqrt(max)));
   for (let i = 0; i < 6000; i++) {
     const left = randInt(rng, 2, fMax);
@@ -720,16 +712,6 @@ const GAME_MODES = [
     settings: modeSettings({
       operations: { division: true, multiplication: false, addition: false, subtraction: false },
       rounded: true,
-    }),
-  },
-  {
-    id: "times-tables",
-    emoji: "📋",
-    name: "Times Tables",
-    tagline: "Multiply by 2–12",
-    settings: modeSettings({
-      operations: { division: false, multiplication: true, addition: false, subtraction: false },
-      factorMax: 12,
     }),
   },
   {
@@ -1217,42 +1199,9 @@ function getTip({ left, right, answer, opSymbol }) {
 
 
 /* ============================================================
-   Times Tables mode  (drill one table from 1× to 20×)
-   ============================================================ */
-function BigTablesMode({ onStartTable }) {
-  const [table, setTable] = useState(() => {
-    try { return parseInt(localStorage.getItem("math-blitz-big-table"), 10) || 12; } catch { return 12; }
-  });
-  const pick = (e) => {
-    const n = parseInt(e.target.value, 10);
-    setTable(n);
-    try { localStorage.setItem("math-blitz-big-table", String(n)); } catch {}
-  };
-  return (
-    <div className="panel" style={{ marginBottom: 10, padding: 14 }}>
-      <span className="label">✖️ Times Tables</span>
-      <div style={{ display: "flex", gap: 10 }}>
-        <select className="mode-select" value={table} onChange={pick} aria-label="Times table">
-          {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
-            <option key={n} value={n}>{n} times table</option>
-          ))}
-        </select>
-        <button
-          className="start-btn"
-          style={{ width: "auto", marginTop: 0, padding: "0 22px", fontSize: 16, flexShrink: 0 }}
-          onClick={() => onStartTable(table)}
-        >
-          Go →
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
    Home Screen
    ============================================================ */
-function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode, onStartTable }) {
+function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode }) {
   const [selectedId, setSelectedId] = useState(
     () => (GAME_MODES.some((m) => m.id === lastMode) ? lastMode : GAME_MODES[0].id)
   );
@@ -1293,8 +1242,6 @@ function HomeScreen({ onStartMode, lastMode, teachMode, onToggleTeachMode, onSta
           Start →
         </button>
       </div>
-
-      <BigTablesMode onStartTable={onStartTable} />
 
       <div className="toggle-row" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "var(--radius)", padding: "14px 18px" }}>
         <div>
@@ -1733,16 +1680,6 @@ function App() {
     else setScreen("home");
   };
 
-  const startBigTable = (n) => {
-    setLastMode("times-table-" + n);
-    launch(randomSeed(), {
-      ...DEFAULT_SETTINGS,
-      operations: { division: false, multiplication: true, addition: false, subtraction: false },
-      tableOf: n,
-      teachMode,
-    });
-  };
-
   const finishGame = (res) => {
     if (res === null) { setScreen("home"); return; }
     const existing = loadHighScores(lastMode);
@@ -1798,7 +1735,6 @@ function App() {
       lastMode={lastMode}
       teachMode={teachMode}
       onToggleTeachMode={toggleTeachMode}
-      onStartTable={startBigTable}
     />
   );
 }

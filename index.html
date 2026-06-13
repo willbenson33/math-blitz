@@ -1189,7 +1189,6 @@ function getTip({ left, right, answer, opSymbol }) {
    Settings Page  (full-page overlay with back button)
    ============================================================ */
 function SettingsPage({ initialSettings = {}, onBack }) {
-  const [range, setRange] = useState(initialSettings.range ?? DEFAULT_SETTINGS.range);
   const [rounds, setRounds] = useState(initialSettings.rounds ?? DEFAULT_SETTINGS.rounds);
   const [timeLimit, setTimeLimit] = useState(initialSettings.timeLimit ?? DEFAULT_SETTINGS.timeLimit);
   const [teachMode, setTeachMode] = useState(initialSettings.teachMode ?? DEFAULT_SETTINGS.teachMode);
@@ -1198,7 +1197,7 @@ function SettingsPage({ initialSettings = {}, onBack }) {
   // Settings page. Carry through whatever was previously stored (or the
   // defaults) so a custom game still has a complete configuration.
   const save = () => onBack({
-    range,
+    range: initialSettings.range ?? DEFAULT_SETTINGS.range,
     rounds: Math.max(1, Math.min(99, parseInt(rounds, 10) || DEFAULT_SETTINGS.rounds)),
     timeLimit,
     rounded: initialSettings.rounded ?? DEFAULT_SETTINGS.rounded,
@@ -1226,15 +1225,6 @@ function SettingsPage({ initialSettings = {}, onBack }) {
       </div>
 
       <div className="panel">
-        <div className="field">
-          <span className="label">Number range</span>
-          <div className="seg">
-            {[100, 500, 1000].map((r) => (
-              <button key={r} className={range === r ? "on" : ""} onClick={() => setRange(r)}>{r}</button>
-            ))}
-          </div>
-        </div>
-
         <div className="row2">
           <div className="field">
             <span className="label">Rounds</span>

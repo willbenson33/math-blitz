@@ -654,6 +654,23 @@ function generateDivision(rng, s) {
 
 function generateMultiplication(rng, s) {
   const max = s.range;
+
+  // Explicit factor ranges (e.g. times-tables modes): pick each factor
+  // independently from its own [min, max] window.
+  if (s.factorAMin != null || s.factorBMin != null) {
+    const aMin = s.factorAMin ?? 2, aMax = Math.max(aMin, s.factorAMax ?? aMin);
+    const bMin = s.factorBMin ?? 2, bMax = Math.max(bMin, s.factorBMax ?? bMin);
+    for (let i = 0; i < 6000; i++) {
+      const left = randInt(rng, aMin, aMax);
+      const right = randInt(rng, bMin, bMax);
+      const answer = left * right;
+      if (passesFilters(left, right, answer, s, "multiplication"))
+        return { left, opSymbol: "×", right, answer };
+    }
+    const left = aMin, right = bMin;
+    return { left, opSymbol: "×", right, answer: left * right };
+  }
+
   const fMax = s.factorMax ?? Math.max(2, Math.floor(Math.sqrt(max)));
   for (let i = 0; i < 6000; i++) {
     const left = randInt(rng, 2, fMax);
@@ -751,6 +768,26 @@ const GAME_MODES = [
     name: "Classic Division",
     tagline: "Mixed divisors — the default blitz",
     settings: modeSettings({}),
+  },
+  {
+    id: "times-tables",
+    emoji: "✖️",
+    name: "11–20 Times Tables",
+    tagline: "Multiply 11–20 by 1–20",
+    settings: modeSettings({
+      operations: { division: false, multiplication: true, addition: false, subtraction: false },
+      factorAMin: 11, factorAMax: 20,
+      factorBMin: 1, factorBMax: 20,
+    }),
+  },
+  {
+    id: "full-mix",
+    emoji: "🔀",
+    name: "Full Mix",
+    tagline: "All four operations",
+    settings: modeSettings({
+      operations: { division: true, multiplication: true, addition: true, subtraction: true },
+    }),
   },
 ];
 

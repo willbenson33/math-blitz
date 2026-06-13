@@ -549,8 +549,20 @@
     background: rgba(91,140,255,0.12);
   }
   .lb-rank { font-size: 12px; font-weight: 900; color: var(--muted); width: 16px; text-align: center; flex-shrink: 0; }
-  .lb-score { font-size: 17px; font-weight: 900; flex: 1; }
-  .lb-meta { font-size: 11px; color: var(--muted); text-align: right; }
+  .lb-main { flex: 1; min-width: 0; }
+  .lb-score-line { display: flex; align-items: center; gap: 8px; }
+  .lb-score { font-size: 17px; font-weight: 900; }
+  .lb-badge {
+    font-size: 10px; font-weight: 800;
+    color: var(--amber);
+    background: rgba(255,179,71,0.14);
+    border: 1px solid rgba(255,179,71,0.4);
+    border-radius: 6px;
+    padding: 1px 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .lb-stats { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
   /* ---------- Challenges ---------- */
   .challenge-grid {
@@ -1787,8 +1799,22 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
           {top5.map((entry, i) => (
             <div key={entry.ts} className={"lb-row" + (entry.ts === currentTs ? " lb-current" : "")}>
               <div className="lb-rank">{i + 1}</div>
-              <div className="lb-score">{entry.score}</div>
-              <div className="lb-meta">{entry.accuracy}% acc · {entry.date}</div>
+              <div className="lb-main">
+                <div className="lb-score-line">
+                  <span className="lb-score">{entry.score}</span>
+                  {entry.hardMode && <span className="lb-badge">🔥 Hard</span>}
+                </div>
+                <div className="lb-stats">
+                  {entry.accuracy}% acc
+                  {entry.perfectRounds != null && (
+                    <> · {entry.perfectRounds}/{entry.rounds} perfect</>
+                  )}
+                  {entry.totalDigits != null && (
+                    <> · {entry.firstTryDigits}/{entry.totalDigits} digits</>
+                  )}
+                  {" · "}{entry.date}
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -1891,6 +1917,9 @@ function App() {
       accuracy: acc,
       perfectRounds: res.perfectRounds,
       rounds: playSettings.rounds,
+      firstTryDigits: res.firstTryDigits,
+      totalDigits: res.totalDigits,
+      hardMode: !!playSettings.hardMode,
       seed,
       date: new Date().toLocaleDateString(),
       ts,

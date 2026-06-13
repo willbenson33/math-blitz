@@ -441,21 +441,21 @@
   .lb-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 11px 14px;
-    border-radius: 12px;
+    gap: 10px;
+    padding: 7px 12px;
+    border-radius: 10px;
     background: var(--panel-2);
     border: 1px solid rgba(255,255,255,0.06);
-    margin-bottom: 8px;
+    margin-bottom: 5px;
   }
   .lb-row:last-child { margin-bottom: 0; }
   .lb-row.lb-current {
     border-color: var(--accent);
     background: rgba(91,140,255,0.12);
   }
-  .lb-rank { font-size: 14px; font-weight: 900; color: var(--muted); width: 20px; text-align: center; flex-shrink: 0; }
-  .lb-score { font-size: 20px; font-weight: 900; flex: 1; }
-  .lb-meta { font-size: 12px; color: var(--muted); text-align: right; line-height: 1.5; }
+  .lb-rank { font-size: 12px; font-weight: 900; color: var(--muted); width: 16px; text-align: center; flex-shrink: 0; }
+  .lb-score { font-size: 17px; font-weight: 900; flex: 1; }
+  .lb-meta { font-size: 11px; color: var(--muted); text-align: right; }
 
   /* ---------- Challenges ---------- */
   .challenge-grid {
@@ -1655,15 +1655,13 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
       )}
 
       {top5.length > 0 && (
-        <div className="panel" style={{ padding: "14px 14px 6px", marginBottom: 20 }}>
-          <span className="label" style={{ display: "block", marginBottom: 10 }}>Top Scores</span>
+        <div className="panel" style={{ padding: "12px 12px 8px", marginBottom: 16 }}>
+          <span className="label" style={{ display: "block", marginBottom: 8 }}>Top Scores</span>
           {top5.map((entry, i) => (
             <div key={entry.ts} className={"lb-row" + (entry.ts === currentTs ? " lb-current" : "")}>
               <div className="lb-rank">{i + 1}</div>
               <div className="lb-score">{entry.score}</div>
-              <div className="lb-meta">
-                {entry.accuracy}% acc<br />{entry.date}
-              </div>
+              <div className="lb-meta">{entry.accuracy}% acc · {entry.date}</div>
             </div>
           ))}
         </div>

@@ -957,6 +957,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [scorePop, setScorePop] = useState(false);
   const [wrongFlash, setWrongFlash] = useState(null); // the wrong digit being flashed
   const [keyFlash, setKeyFlash] = useState(null);  // {digit, kind}
+  const [wrongPulse, setWrongPulse] = useState(false); // brief red flash across all number keys
   const [perfectStreak, setPerfectStreak] = useState(0);
   const [timeLeft, setTimeLeft] = useState(settings.timeLimit);
   const [revealAnswer, setRevealAnswer] = useState(false);
@@ -1101,6 +1102,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       wrongStreak.current += 1;
       setWrongCount(wrongStreak.current);
       flashKey(d, "red");
+      setWrongPulse(true); // flash every number key red, very briefly
+      setTimeout(() => setWrongPulse(false), 140);
       setWrongFlash(d);
       if (wrongStreak.current >= 3) {
         // 3 strikes: reveal answer and move on, no points for this position
@@ -1212,7 +1215,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         <div className="numpad" style={revealAnswer ? { opacity: 0.35, pointerEvents: "none" } : undefined}>
           {keys.map((k) => {
             let cls = "key";
-            if (keyFlash && keyFlash.digit === k) cls += keyFlash.kind === "green" ? " flash-green" : " flash-red";
+            if (wrongPulse) cls += " flash-red";
+            else if (keyFlash && keyFlash.digit === k) cls += keyFlash.kind === "green" ? " flash-green" : " flash-red";
             return (
               <button key={k} className={cls} onClick={() => handleDigit(k)}>{k}</button>
             );
@@ -1232,7 +1236,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
             ⏰<span style={{ color: "var(--green)" }}>+</span>
           </button>
           <button
-            className={"key" + (keyFlash && keyFlash.digit === "0" ? (keyFlash.kind === "green" ? " flash-green" : " flash-red") : "")}
+            className={"key" + (wrongPulse ? " flash-red" : keyFlash && keyFlash.digit === "0" ? (keyFlash.kind === "green" ? " flash-green" : " flash-red") : "")}
             style={{ gridColumn: 2 }}
             onClick={() => handleDigit("0")}
           >

@@ -1,12 +1,32 @@
-# Math Blitz — Division
+# Math Blitz
 
-A single-file division speed game. Open `index.html` in any modern browser — no build step, no install. Built with React (loaded from a CDN) so the whole game lives in one file.
+A single-file mental-math speed game. Open `index.html` in any modern browser — no build step, no install. Built with React (loaded from a CDN) so the whole game lives in one file.
 
 ## Play
 
 1. Open `index.html`.
-2. Configure your run on the **settings screen**.
-3. Hit **Start Blitz** and answer each problem on the numpad.
+2. Pick a **game mode** on the home screen, or set up a **Custom Game**.
+3. Answer each problem on the numpad.
+
+## Game modes
+
+The home screen lists ready-to-play modes. Each mode is a complete, self-contained
+configuration (it carries the full default settings plus its own twist), so a mode
+always plays the same way regardless of what's in your custom Settings:
+
+- **Classic Division** — mixed divisors, the default blitz.
+- **÷ Single Digit** — divide by 2–9.
+- **÷ Two Digits** — divide by 10–99.
+- **÷ Round Numbers** — divisors are multiples of 10.
+- **Times Tables** — multiply by 2–12.
+- **Add Sprint** / **Sub Sprint** — back-to-back addition or subtraction.
+- **Add & Subtract** — mixed + and − problems.
+- **Full Mix** — all four operations.
+
+## Custom Game
+
+Use the **Custom Game** panel (home or summary screen) to play a run with whatever
+you've configured on the Settings screen.
 
 ## Settings
 
@@ -16,7 +36,7 @@ A single-file division speed game. Open `index.html` in any modern browser — n
 - **Rounded numbers only** — divisors are round (multiples of 10); division is always clean.
 - **No zero in result** — answers never contain a `0` digit.
 - **Parity** — Any, Odds only (dividend & divisor odd), or Evens only.
-- **Seed** — leave blank for a random seed, type your own, or tap **🗓️ Today's Challenge** for the daily seed (same problems for everyone that calendar day). The same seed + same settings always produces the same problems in the same order. The active seed is shown during the game and on the summary so runs can be shared or replayed.
+- **Seed** — leave blank for a random seed or type your own. The same seed + same settings always produces the same problems in the same order. The active seed is shown during the game and on the summary so runs can be shared or replayed.
 
 ## How a round works
 

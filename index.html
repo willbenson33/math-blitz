@@ -1374,7 +1374,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
           <div className="k">Round</div>
           <div className="v">{roundIdx + 1}/{rounds.length}</div>
         </div>
-        <div className="stat">
+        <div className="stat" style={{ textAlign: "right" }}>
           <div className="k">Score</div>
           <div className={"v" + (scorePop ? " score-pop" : "")}>{score}</div>
         </div>

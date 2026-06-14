@@ -1219,6 +1219,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         else roundPerfect.current = false;
       }
       wrongStreak.current = 0;
+      setWrongCount(0); // clear the strike dots once a correct digit lands
       flashKey(d, "green");
       const next = [...locked, d];
       setLocked(next);

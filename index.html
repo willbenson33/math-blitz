@@ -252,7 +252,7 @@
 
   .time-bonus {
     position: absolute;
-    right: 4px;
+    right: 8px;
     top: 50%;
     white-space: nowrap;
     font-size: 40px;
@@ -273,9 +273,8 @@
 
   .combo-mult {
     position: absolute;
-    right: 100%;
+    left: 8px;
     top: 50%;
-    margin-right: 10px;
     white-space: nowrap;
     font-size: 40px;
     font-weight: 900;
@@ -304,10 +303,10 @@
   @keyframes flicker { from { transform: translateY(0) scale(1); filter: drop-shadow(0 0 4px #ff8c2e); } to { transform: translateY(-3px) scale(1.12); filter: drop-shadow(0 0 10px #ff5e2e); } }
 
   .timer-track {
-    position: relative;
     height: 8px;
     border-radius: 999px;
     background: var(--panel-2);
+    overflow: hidden;
     margin-bottom: 18px;
   }
   .timer-fill {
@@ -328,6 +327,7 @@
   }
   .problem .op { color: var(--accent-2); margin: 0 8px; }
 
+  .reveal-row { position: relative; }
   .slots {
     display: flex;
     justify-content: center;
@@ -1293,7 +1293,6 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         <div className="stat">
           <div className="k">Score</div>
           <div className={"v" + (scorePop ? " score-pop" : "")}>{score}</div>
-          {comboMult > 1 && <div key={"c" + perfectStreak} className="combo-mult">×{comboMult}</div>}
         </div>
         <div className="stat">
           <div className="k">Seed</div>
@@ -1320,7 +1319,6 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       {settings.timeLimit > 0 && (
         <div className="timer-track">
           <div className={"timer-fill" + (low ? " low" : "")} style={{ width: timePct + "%" }} />
-          {timeBonusDisplay && <div key={timeBonusDisplay + roundIdx} className="time-bonus">+{timeBonusDisplay}⚡</div>}
         </div>
       )}
 
@@ -1329,7 +1327,9 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       </div>
 
       <div className="reveal-row">
+        {comboMult > 1 && <div key={"c" + perfectStreak} className="combo-mult">×{comboMult}</div>}
         <div className="slots">{slots}</div>
+        {timeBonusDisplay && <div key={timeBonusDisplay + roundIdx} className="time-bonus">+{timeBonusDisplay}⚡</div>}
       </div>
 
       {paused ? (

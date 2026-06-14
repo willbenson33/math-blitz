@@ -17,6 +17,16 @@ if [ -n "$(git status --porcelain)" ]; then
   changed=1
 fi
 
+# Refresh master and rebase onto it so the merge below can always fast-forward.
+# (Without this, a branch whose base is older than master diverges and the
+#  fast-forward push silently fails.)
+git fetch origin master >/dev/null 2>&1
+if ! git rebase origin/master >/dev/null 2>&1; then
+  git rebase --abort >/dev/null 2>&1
+  printf '{"systemMessage":"Auto-merge hook: branch conflicts with master — rebase aborted, resolve and merge manually."}'
+  exit 0
+fi
+
 # Skip the rest if nothing new and the branch isn't ahead of master.
 ahead=$(git rev-list --count origin/master..HEAD 2>/dev/null || echo 0)
 if [ "$changed" = "0" ] && [ "$ahead" = "0" ]; then
@@ -31,7 +41,7 @@ if ! grep -q "</html>" index.html 2>/dev/null; then
 fi
 
 # 3. Push the branch, then merge into master (fast-forward push).
-git push -u origin "$branch" >/dev/null 2>&1
+git push -f -u origin "$branch" >/dev/null 2>&1
 if git push origin "HEAD:master" >/dev/null 2>&1; then
   printf '{"systemMessage":"Auto-merge hook: committed, pushed %s, and merged into master."}' "$branch"
 else

@@ -15,6 +15,7 @@ configuration (it carries the full default settings plus its own twist), so a mo
 always plays the same way regardless of what's in your custom Settings:
 
 - **Classic Division** — mixed divisors, the default blitz.
+- **2–3 Digit Answers** — division where every quotient lands between 10 and 999.
 - **÷ Single Digit** — divide by 2–9.
 - **÷ Two Digits** — divide by 10–99.
 - **÷ Round Numbers** — divisors are multiples of 10.

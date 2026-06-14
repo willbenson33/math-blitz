@@ -744,17 +744,21 @@ function generateDivision(rng, s) {
   const dMax = s.divisorMax != null
     ? Math.min(s.divisorMax, Math.floor(max / 2))
     : Math.max(dMin, Math.min(Math.floor(max / 2), 99));
+  // The quotient (answer) can be pinned to a window — e.g. a 2–3 digit mode
+  // constrains it to 10–999 so every answer has the requested number of digits.
+  const aMin = s.answerMin ?? 2;
+  const aMax = s.answerMax ?? Infinity;
   for (let i = 0; i < 6000; i++) {
     const right = randInt(rng, dMin, Math.max(dMin, dMax));
-    const maxQ = Math.floor(max / right);
-    if (maxQ < 2) continue;
-    const answer = randInt(rng, 2, maxQ);
+    const maxQ = Math.min(Math.floor(max / right), aMax);
+    if (maxQ < aMin) continue;
+    const answer = randInt(rng, aMin, maxQ);
     const left = right * answer;
     if (left <= max && passesFilters(left, right, answer, s, "division"))
       return { left, opSymbol: "÷", right, answer };
   }
   const right = dMin;
-  const answer = randInt(rng, 2, Math.max(2, Math.floor(max / right)));
+  const answer = randInt(rng, aMin, Math.max(aMin, Math.min(aMax, Math.floor(max / right))));
   return { left: right * answer, opSymbol: "÷", right, answer };
 }
 
@@ -929,6 +933,18 @@ const GAME_MODES = [
     name: "Classic Division",
     tagline: "The original",
     settings: modeSettings({}),
+  },
+  {
+    id: "div-2-3-digit",
+    emoji: "🔟",
+    name: "2–3 Digit Answers",
+    tagline: "Every quotient is 10–999",
+    settings: modeSettings({
+      operations: { division: true, multiplication: false, addition: false, subtraction: false },
+      range: 12000,
+      divisorMin: 2, divisorMax: 12,
+      answerMin: 10, answerMax: 999,
+    }),
   },
   {
     id: "times-tables",

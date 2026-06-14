@@ -252,10 +252,11 @@
 
   .time-bonus {
     position: absolute;
-    left: 50%;
+    left: 100%;
     top: 50%;
+    margin-left: 10px;
     white-space: nowrap;
-    font-size: 44px;
+    font-size: 28px;
     font-weight: 900;
     color: var(--amber);
     text-shadow: 0 0 18px rgba(255,140,46,0.85), 0 2px 6px rgba(0,0,0,0.5);
@@ -264,18 +265,20 @@
     animation: bonusFly 1.1s cubic-bezier(.2,.8,.3,1) forwards;
   }
   @keyframes bonusFly {
-    0%   { opacity:0; transform:translate(-50%,-50%) scale(0.4); }
-    18%  { opacity:1; transform:translate(-50%,-62%) scale(1.25); }
-    35%  { transform:translate(-50%,-70%) scale(1); }
-    75%  { opacity:1; transform:translate(-50%,-90%) scale(1); }
-    100% { opacity:0; transform:translate(-50%,-104%) scale(0.95); }
+    0%   { opacity:0; transform:translateY(-50%) translateX(-4px) scale(0.4); }
+    18%  { opacity:1; transform:translateY(-50%) translateX(4px) scale(1.25); }
+    35%  { transform:translateY(-50%) translateX(8px) scale(1); }
+    75%  { opacity:1; transform:translateY(-50%) translateX(14px) scale(1); }
+    100% { opacity:0; transform:translateY(-50%) translateX(22px) scale(0.95); }
   }
 
   .combo-mult {
     position: absolute;
-    left: 50%;
+    right: 100%;
     top: 50%;
-    font-size: 40px;
+    margin-right: 10px;
+    white-space: nowrap;
+    font-size: 28px;
     font-weight: 900;
     color: var(--accent);
     text-shadow: 0 0 16px rgba(91,140,255,0.85), 0 2px 6px rgba(0,0,0,0.5);
@@ -284,11 +287,11 @@
     animation: comboPop 1.1s cubic-bezier(.2,.8,.3,1) forwards;
   }
   @keyframes comboPop {
-    0%   { opacity:0; transform:translate(-50%,-50%) scale(0.3) rotate(-12deg); }
-    18%  { opacity:1; transform:translate(-50%,-62%) scale(1.4) rotate(6deg); }
-    35%  { transform:translate(-50%,-70%) scale(1) rotate(-3deg); }
-    75%  { opacity:1; transform:translate(-50%,-90%) scale(1) rotate(0deg); }
-    100% { opacity:0; transform:translate(-50%,-104%) scale(0.95) rotate(0deg); }
+    0%   { opacity:0; transform:translateY(-50%) translateX(4px) scale(0.3) rotate(-12deg); }
+    18%  { opacity:1; transform:translateY(-50%) translateX(-4px) scale(1.4) rotate(6deg); }
+    35%  { transform:translateY(-50%) translateX(-8px) scale(1) rotate(-3deg); }
+    75%  { opacity:1; transform:translateY(-50%) translateX(-14px) scale(1) rotate(0deg); }
+    100% { opacity:0; transform:translateY(-50%) translateX(-22px) scale(0.95) rotate(0deg); }
   }
 
   .fire-bar {
@@ -317,7 +320,6 @@
   .timer-fill.low { background: linear-gradient(90deg, var(--amber), var(--red)); }
 
   .problem {
-    position: relative;
     text-align: center;
     font-size: clamp(46px, 14vw, 76px);
     font-weight: 900;
@@ -1292,6 +1294,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         <div className="stat">
           <div className="k">Score</div>
           <div className={"v" + (scorePop ? " score-pop" : "")}>{score}</div>
+          {comboMult > 1 && <div key={"c" + perfectStreak} className="combo-mult">×{comboMult}</div>}
+          {timeBonusDisplay && <div key={timeBonusDisplay + roundIdx} className="time-bonus">+{timeBonusDisplay}⚡</div>}
         </div>
         <div className="stat">
           <div className="k">Seed</div>
@@ -1323,8 +1327,6 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
       <div className="problem">
         {problem.left}<span className="op">{problem.opSymbol}</span>{problem.right}
-        {comboMult > 1 && <div key={"c" + perfectStreak} className="combo-mult">×{comboMult}</div>}
-        {timeBonusDisplay && <div key={timeBonusDisplay + roundIdx} className="time-bonus">+{timeBonusDisplay}⚡</div>}
       </div>
 
       <div className="reveal-row">

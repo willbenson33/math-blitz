@@ -425,6 +425,25 @@
   .key.wide { font-size: 22px; }
   .key.action { color: var(--amber); }
 
+  /* Hold-to-pause during the answer reveal: a transparent capture layer
+     defers advancing, and a soft, blurry blue frame marks the held state. */
+  .hold-capture {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: transparent;
+    touch-action: none;
+  }
+  .hold-frame {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    border: 5px solid rgba(91,140,255,0.65);
+    box-shadow: inset 0 0 40px 8px rgba(91,140,255,0.5);
+    filter: blur(1.5px);
+  }
+
   :root[data-theme="light"] .key {
     border: 1px solid rgba(127,127,127,0.16);
     background: linear-gradient(180deg, #ffffff, #dde4f2);
@@ -1082,6 +1101,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [revealAnswer, setRevealAnswer] = useState(false);
   const [roundBonus, setRoundBonus] = useState(null); // { combo, time } shown together after a completed answer
   const [paused, setPaused] = useState(false);
+  const [holding, setHolding] = useState(false); // finger held on screen during the answer reveal
   const [wrongCount, setWrongCount] = useState(0);
   const [timeRefreshUsed, setTimeRefreshUsed] = useState(false); // one-use-per-game time refresh
 
@@ -1093,7 +1113,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const revealing = useRef(false); // true during the correct-answer flash after timeout
   const roundErrors = useRef(0);   // total wrong taps this round (across all digits); 3 reveals the answer
   const pausedRef = useRef(false);      // latest paused state for timers
-  const pendingAdvance = useRef(false); // reveal timer fired while paused — advance on resume
+  const holdingRef = useRef(false);     // latest hold state for timers
+  const pendingAdvance = useRef(false); // reveal timer fired while paused/held — advance on resume/release
 
   // aggregate stats across the whole run
   const stats = useRef({ firstTryDigits: 0, totalDigits: 0, perfectRounds: 0 });
@@ -1124,6 +1145,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     setWrongPulse(false);
     setRightPulse(false);
     pendingAdvance.current = false;
+    holdingRef.current = false;
+    setHolding(false);
     setTimeLeft(settings.timeLimit);
     setRevealAnswer(false);
     setRoundBonus(null);
@@ -1163,9 +1186,23 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   // After a failed-round reveal, advance — unless the player tapped Pause,
   // in which case wait and advance the moment they tap Resume.
   const advanceAfterReveal = useCallback(() => {
-    if (pausedRef.current) { pendingAdvance.current = true; return; }
+    if (pausedRef.current || holdingRef.current) { pendingAdvance.current = true; return; }
     finishRound(false);
   }, [finishRound]);
+
+  // Hold anywhere during the reveal to defer advancing; release to continue.
+  const startHold = () => { holdingRef.current = true; setHolding(true); };
+  const endHold = () => {
+    if (!holdingRef.current) return;
+    holdingRef.current = false;
+    setHolding(false);
+    // If the reveal's auto-advance fired while held (and we're not also
+    // paused via the button), move on the moment they let go.
+    if (!pausedRef.current && pendingAdvance.current) {
+      pendingAdvance.current = false;
+      finishRound(false);
+    }
+  };
 
   // keep a ref of score for the finish callback
   const scoreRef = useRef(0);
@@ -1302,6 +1339,16 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
   return (
     <div>
+      {revealAnswer && !paused && (
+        <div
+          className="hold-capture"
+          onPointerDown={startHold}
+          onPointerUp={endHold}
+          onPointerLeave={endHold}
+          onPointerCancel={endHold}
+        />
+      )}
+      {holding && <div className="hold-frame" aria-hidden="true" />}
       <div className="gtop">
         <div className="stat">
           <div className="k">Round</div>

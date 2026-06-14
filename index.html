@@ -1098,7 +1098,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const roundPerfect = useRef(true);
   const advancing = useRef(false);
   const revealing = useRef(false); // true during the correct-answer flash after timeout
-  const wrongStreak = useRef(0);   // wrong taps this round; 3 strikes reveals the answer
+  const roundErrors = useRef(0);   // total wrong taps this round (across all digits); 3 reveals the answer
   const pausedRef = useRef(false);      // latest paused state for timers
   const pendingAdvance = useRef(false); // reveal timer fired while paused — advance on resume
 
@@ -1119,7 +1119,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     roundPerfect.current = true;
     advancing.current = false;
     revealing.current = false;
-    wrongStreak.current = 0;
+    roundErrors.current = 0;
     setWrongCount(0);
     setLocked([]);
     setWrongFlash(null);
@@ -1218,8 +1218,6 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         if (firstTry) stats.current.firstTryDigits += 1;
         else roundPerfect.current = false;
       }
-      wrongStreak.current = 0;
-      setWrongCount(0); // clear the strike dots once a correct digit lands
       flashKey(d, "green");
       const next = [...locked, d];
       setLocked(next);
@@ -1243,13 +1241,13 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       retriedPos.current.add(pos);
       roundPerfect.current = false;
       setPerfectStreak(0); // break the fire streak the moment a guess is wrong
-      wrongStreak.current += 1;
-      setWrongCount(wrongStreak.current);
+      roundErrors.current += 1;
+      setWrongCount(roundErrors.current);
       flashKey(d, "red");
       setWrongPulse(true); // strobe every number key red, then let it fade out
       setTimeout(() => setWrongPulse(false), 320);
       setWrongFlash(d);
-      if (wrongStreak.current >= 3) {
+      if (roundErrors.current >= 3) {
         // 3 strikes: reveal answer and move on, no points for this position
         revealing.current = true;
         setTimeout(() => {

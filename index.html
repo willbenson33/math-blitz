@@ -265,11 +265,10 @@
     animation: bonusFly 0.7s cubic-bezier(.2,.8,.3,1) forwards;
   }
   @keyframes bonusFly {
-    0%   { opacity:0; transform:translateY(-50%) translateX(-4px) scale(0.4); }
-    18%  { opacity:1; transform:translateY(-50%) translateX(4px) scale(1.25); }
-    35%  { transform:translateY(-50%) translateX(8px) scale(1); }
-    75%  { opacity:1; transform:translateY(-50%) translateX(14px) scale(1); }
-    100% { opacity:0; transform:translateY(-50%) translateX(22px) scale(0.95); }
+    0%   { opacity:0; transform:translateY(-50%) scale(0.4); }
+    18%  { opacity:1; transform:translateY(-50%) scale(1.25); }
+    35%  { opacity:1; transform:translateY(-50%) scale(1); }
+    100% { opacity:0; transform:translateY(-50%) scale(1); }
   }
 
   .combo-mult {
@@ -287,11 +286,10 @@
     animation: comboPop 0.7s cubic-bezier(.2,.8,.3,1) forwards;
   }
   @keyframes comboPop {
-    0%   { opacity:0; transform:translateY(-50%) translateX(4px) scale(0.3) rotate(-12deg); }
-    18%  { opacity:1; transform:translateY(-50%) translateX(-4px) scale(1.4) rotate(6deg); }
-    35%  { transform:translateY(-50%) translateX(-8px) scale(1) rotate(-3deg); }
-    75%  { opacity:1; transform:translateY(-50%) translateX(-14px) scale(1) rotate(0deg); }
-    100% { opacity:0; transform:translateY(-50%) translateX(-22px) scale(0.95) rotate(0deg); }
+    0%   { opacity:0; transform:translateY(-50%) scale(0.3) rotate(-12deg); }
+    18%  { opacity:1; transform:translateY(-50%) scale(1.4) rotate(6deg); }
+    35%  { opacity:1; transform:translateY(-50%) scale(1) rotate(-3deg); }
+    100% { opacity:0; transform:translateY(-50%) scale(1) rotate(0deg); }
   }
 
   .fire-bar {

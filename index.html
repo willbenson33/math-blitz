@@ -316,6 +316,8 @@
     transition: width .12s linear;
   }
   .timer-fill.low { background: linear-gradient(90deg, var(--amber), var(--red)); }
+  /* While held during the reveal, recolor the bar to match the blue frame. */
+  .timer-fill.held { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
 
   .problem {
     text-align: center;
@@ -1382,7 +1384,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
       {settings.timeLimit > 0 && (
         <div className="timer-track">
-          <div className={"timer-fill" + (low ? " low" : "")} style={{ width: timePct + "%" }} />
+          <div className={"timer-fill" + (holding ? " held" : low ? " low" : "")} style={{ width: timePct + "%" }} />
         </div>
       )}
 

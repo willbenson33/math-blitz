@@ -760,7 +760,8 @@ function generatePercent(rng, s) {
   // the percent range comes from the mode (1–99 or 1–999). In the larger range
   // the numerator is frequently bigger than the denominator (percent > 100%).
   // When s.bigFraction is set, the fraction is scaled up so the printed numbers
-  // span 2–4 digits (the percent is unchanged) to give bigger numbers to work with.
+  // span 2–3 digits (the percent is unchanged) to give bigger numbers to work with
+  // while staying out of the thousands.
   const pctMin = s.percentMin ?? 1;
   const pctMax = s.percentMax ?? 99;
   const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
@@ -777,7 +778,7 @@ function generatePercent(rng, s) {
 
     let num = num0, den = den0;
     if (s.bigFraction) {
-      const digits = randInt(rng, 2, 4);           // target denominator size: 2–4 digits
+      const digits = randInt(rng, 2, 3);           // target denominator size: 2–3 digits (stay out of the thousands)
       const mLo = Math.max(2, Math.ceil((10 ** (digits - 1)) / den0));
       const mHi = Math.floor((10 ** digits - 1) / den0);
       if (mHi < mLo) continue;

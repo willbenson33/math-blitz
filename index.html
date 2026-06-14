@@ -1080,8 +1080,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [perfectStreak, setPerfectStreak] = useState(0);
   const [timeLeft, setTimeLeft] = useState(settings.timeLimit);
   const [revealAnswer, setRevealAnswer] = useState(false);
-  const [timeBonusDisplay, setTimeBonusDisplay] = useState(null);
-  const [comboMultDisplay, setComboMultDisplay] = useState(null);
+  const [roundBonus, setRoundBonus] = useState(null); // { combo, time } shown together after a completed answer
   const [paused, setPaused] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
   const [timeRefreshUsed, setTimeRefreshUsed] = useState(false); // one-use-per-game time refresh
@@ -1127,8 +1126,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     pendingAdvance.current = false;
     setTimeLeft(settings.timeLimit);
     setRevealAnswer(false);
-    setTimeBonusDisplay(null);
-    setComboMultDisplay(null);
+    setRoundBonus(null);
   }, [settings.timeLimit]);
 
   // advance to next round (or finish)
@@ -1225,13 +1223,18 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       if (next.length === answerStr.length) {
         setRightPulse(true); // strobe every number key green on a completed answer
         setTimeout(() => setRightPulse(false), 320);
-        if (comboMult > 1) setComboMultDisplay(comboMult);
+        let timeBonus = 0;
         if (settings.timeLimit > 0) {
-          const bonus = Math.round(timeLeft * 200 / (settings.timeLimit * settings.timeLimit) * comboMult);
-          if (bonus > 0) {
-            setScore((s) => s + bonus);
-            setTimeBonusDisplay(bonus);
-          }
+          timeBonus = Math.round(timeLeft * 200 / (settings.timeLimit * settings.timeLimit) * comboMult);
+          if (timeBonus > 0) setScore((s) => s + timeBonus);
+        }
+        // Set both bonuses from one atomic state so they always appear and
+        // disappear together with the next question.
+        if (comboMult > 1 || timeBonus > 0) {
+          setRoundBonus({
+            combo: comboMult > 1 ? comboMult : null,
+            time: timeBonus > 0 ? timeBonus : null,
+          });
         }
         finishRound(roundPerfect.current);
       } else if (settings.timeLimit) {
@@ -1342,11 +1345,11 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
       <div className="reveal-row">
         <div className="bonus-col">
-          {comboMultDisplay && <div key={"c" + roundIdx} className="combo-mult">×{comboMultDisplay}</div>}
+          {roundBonus && roundBonus.combo && <div key={"b" + roundIdx} className="combo-mult">×{roundBonus.combo}</div>}
         </div>
         <div className="slots">{slots}</div>
         <div className="bonus-col">
-          {timeBonusDisplay && <div key={timeBonusDisplay + roundIdx} className="time-bonus">+{timeBonusDisplay}⚡</div>}
+          {roundBonus && roundBonus.time && <div key={"b" + roundIdx} className="time-bonus">+{roundBonus.time}⚡</div>}
         </div>
       </div>
 

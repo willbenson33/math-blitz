@@ -252,7 +252,7 @@
 
   .time-bonus {
     position: absolute;
-    right: 8px;
+    left: 0;
     top: 50%;
     white-space: nowrap;
     font-size: 40px;
@@ -273,7 +273,7 @@
 
   .combo-mult {
     position: absolute;
-    left: 8px;
+    right: 0;
     top: 50%;
     white-space: nowrap;
     font-size: 40px;
@@ -327,12 +327,23 @@
   }
   .problem .op { color: var(--accent-2); margin: 0 8px; }
 
-  .reveal-row { position: relative; }
+  .reveal-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin: 14px 0 26px;
+  }
+  .bonus-col {
+    flex: 1 1 0;
+    min-width: 0;
+    align-self: stretch;
+    position: relative;
+  }
   .slots {
     display: flex;
     justify-content: center;
     gap: 10px;
-    margin: 14px 0 26px;
     min-height: 76px;
   }
   .slot {
@@ -1327,9 +1338,13 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       </div>
 
       <div className="reveal-row">
-        {comboMult > 1 && <div key={"c" + perfectStreak} className="combo-mult">×{comboMult}</div>}
+        <div className="bonus-col">
+          {comboMult > 1 && <div key={"c" + perfectStreak} className="combo-mult">×{comboMult}</div>}
+        </div>
         <div className="slots">{slots}</div>
-        {timeBonusDisplay && <div key={timeBonusDisplay + roundIdx} className="time-bonus">+{timeBonusDisplay}⚡</div>}
+        <div className="bonus-col">
+          {timeBonusDisplay && <div key={timeBonusDisplay + roundIdx} className="time-bonus">+{timeBonusDisplay}⚡</div>}
+        </div>
       </div>
 
       {paused ? (

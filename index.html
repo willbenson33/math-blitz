@@ -424,26 +424,6 @@
   .key.wide { font-size: 22px; }
   .key.action { color: var(--amber); }
 
-  /* Pause button shown beside the missed answer during the reveal */
-  .reveal-row { position: relative; }
-  .reveal-pause-btn {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    padding: 10px 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.12);
-    background: var(--panel-2);
-    color: var(--amber);
-    font-weight: 800;
-    font-size: 15px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .reveal-pause-btn:active { transform: translateY(-50%) scale(0.96); }
-  .reveal-pause-btn.held { color: var(--accent); border-color: rgba(91,140,255,0.5); }
-
   :root[data-theme="light"] .key {
     border: 1px solid rgba(127,127,127,0.16);
     background: linear-gradient(180deg, #ffffff, #dde4f2);
@@ -1111,7 +1091,6 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [paused, setPaused] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
   const [timeRefreshUsed, setTimeRefreshUsed] = useState(false); // one-use-per-game time refresh
-  const [holding, setHolding] = useState(false); // pause held on the answer reveal
 
   // per-round bookkeeping (refs so timers/handlers see latest)
   const retriedPos = useRef(new Set());   // positions that needed a retry
@@ -1120,8 +1099,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const advancing = useRef(false);
   const revealing = useRef(false); // true during the correct-answer flash after timeout
   const wrongStreak = useRef(0);   // wrong taps this round; 3 strikes reveals the answer
-  const holdingRef = useRef(false);     // latest hold state for timers
-  const pendingAdvance = useRef(false); // reveal timer fired while held — advance on release
+  const pausedRef = useRef(false);      // latest paused state for timers
+  const pendingAdvance = useRef(false); // reveal timer fired while paused — advance on resume
 
   // aggregate stats across the whole run
   const stats = useRef({ firstTryDigits: 0, totalDigits: 0, perfectRounds: 0 });
@@ -1148,8 +1127,6 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     setWrongPulse(false);
     setRightPulse(false);
     pendingAdvance.current = false;
-    holdingRef.current = false;
-    setHolding(false);
     setTimeLeft(settings.timeLimit);
     setRevealAnswer(false);
     setTimeBonusDisplay(null);
@@ -1189,21 +1166,16 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   // After a failed-round reveal, advance — unless the player tapped Pause,
   // in which case wait and advance the moment they tap Resume.
   const advanceAfterReveal = useCallback(() => {
-    if (holdingRef.current) { pendingAdvance.current = true; return; }
+    if (pausedRef.current) { pendingAdvance.current = true; return; }
     finishRound(false);
   }, [finishRound]);
-
-  const startHold = () => { holdingRef.current = true; setHolding(true); };
-  const endHold = () => {
-    if (!holdingRef.current) return;
-    holdingRef.current = false;
-    setHolding(false);
-    if (pendingAdvance.current) { pendingAdvance.current = false; finishRound(false); }
-  };
 
   // keep a ref of score for the finish callback
   const scoreRef = useRef(0);
   useEffect(() => { scoreRef.current = score; }, [score]);
+
+  // keep a ref of paused state so reveal timers can see the latest value
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
 
   // timer
   useEffect(() => {
@@ -1371,21 +1343,19 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
       <div className="reveal-row">
         <div className="slots">{slots}</div>
-        {revealAnswer && (
-          <button
-            className={"reveal-pause-btn" + (holding ? " held" : "")}
-            onClick={holding ? endHold : startHold}
-          >
-            {holding ? "Resume →" : "⏸ Pause"}
-          </button>
-        )}
       </div>
 
       {paused ? (
         <div style={{ textAlign: "center", padding: "32px 0" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>⏸</div>
           <div style={{ color: "var(--muted)", fontSize: 15, marginBottom: 24 }}>Paused — no points for this question</div>
-          <button className="start-btn" style={{ marginBottom: 12 }} onClick={() => { roundPerfect.current = false; if (settings.timeLimit) setTimeLeft(settings.timeLimit); setPaused(false); }}>
+          <button className="start-btn" style={{ marginBottom: 12 }} onClick={() => {
+            roundPerfect.current = false;
+            setPaused(false);
+            // If the reveal's auto-advance fired while paused, move on now.
+            if (pendingAdvance.current) { pendingAdvance.current = false; finishRound(false); return; }
+            if (settings.timeLimit) setTimeLeft(settings.timeLimit);
+          }}>
             Resume →
           </button>
           <button className="start-btn" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--muted)", boxShadow: "none" }} onClick={() => onFinish(null)}>
@@ -1424,7 +1394,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
           >
             0
           </button>
-          <button className="key wide action" style={{ gridColumn: 3 }} onClick={() => { roundPerfect.current = false; setPaused(true); }}>⏸</button>
+          <button className="key wide action" style={{ gridColumn: 3, ...(revealAnswer ? { pointerEvents: "auto", opacity: 1 } : {}) }} onClick={() => { roundPerfect.current = false; setPaused(true); }}>⏸</button>
         </div>
       )}
     </div>

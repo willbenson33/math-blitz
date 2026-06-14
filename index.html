@@ -46,7 +46,9 @@
   html, body {
     margin: 0;
     padding: 0;
-    min-height: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
     background:
       radial-gradient(1200px 600px at 50% -10%, #1b2438 0%, transparent 60%),
       var(--bg);
@@ -83,7 +85,9 @@
     max-width: 540px;
     margin: 0 auto;
     padding: 18px 16px 40px;
-    min-height: 100vh;
+    height: 100vh;
+    overflow-y: auto;
+    overscroll-behavior: none;
   }
 
   h1, h2, h3 { margin: 0; }
@@ -261,14 +265,12 @@
     text-shadow: 0 0 18px rgba(255,140,46,0.85), 0 2px 6px rgba(0,0,0,0.5);
     pointer-events: none;
     z-index: 20;
-    animation: bonusFly 1.1s cubic-bezier(.2,.8,.3,1) forwards;
+    animation: bonusFly 0.4s cubic-bezier(.2,.8,.3,1) forwards;
   }
   @keyframes bonusFly {
     0%   { opacity:0; transform:translateY(-50%) scale(0.4); }
-    12%  { opacity:1; transform:translateY(-50%) scale(1.25); }
-    24%  { opacity:1; transform:translateY(-50%) scale(1); }
-    70%  { opacity:1; transform:translateY(-50%) scale(1); }
-    100% { opacity:0; transform:translateY(-50%) scale(1); }
+    60%  { opacity:1; transform:translateY(-50%) scale(1.25); }
+    100% { opacity:1; transform:translateY(-50%) scale(1); }
   }
 
   .combo-mult {
@@ -282,14 +284,12 @@
     text-shadow: 0 0 16px rgba(91,140,255,0.85), 0 2px 6px rgba(0,0,0,0.5);
     pointer-events: none;
     z-index: 20;
-    animation: comboPop 1.1s cubic-bezier(.2,.8,.3,1) forwards;
+    animation: comboPop 0.4s cubic-bezier(.2,.8,.3,1) forwards;
   }
   @keyframes comboPop {
     0%   { opacity:0; transform:translateY(-50%) scale(0.4); }
-    12%  { opacity:1; transform:translateY(-50%) scale(1.25); }
-    24%  { opacity:1; transform:translateY(-50%) scale(1); }
-    70%  { opacity:1; transform:translateY(-50%) scale(1); }
-    100% { opacity:0; transform:translateY(-50%) scale(1); }
+    60%  { opacity:1; transform:translateY(-50%) scale(1.25); }
+    100% { opacity:1; transform:translateY(-50%) scale(1); }
   }
 
   .fire-bar {
@@ -1081,6 +1081,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const [timeLeft, setTimeLeft] = useState(settings.timeLimit);
   const [revealAnswer, setRevealAnswer] = useState(false);
   const [timeBonusDisplay, setTimeBonusDisplay] = useState(null);
+  const [comboMultDisplay, setComboMultDisplay] = useState(null);
   const [paused, setPaused] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
   const [timeRefreshUsed, setTimeRefreshUsed] = useState(false); // one-use-per-game time refresh
@@ -1127,6 +1128,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
     setTimeLeft(settings.timeLimit);
     setRevealAnswer(false);
     setTimeBonusDisplay(null);
+    setComboMultDisplay(null);
   }, [settings.timeLimit]);
 
   // advance to next round (or finish)
@@ -1155,7 +1157,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
           setRoundIdx((i) => i + 1);
           resetRoundState();
         }
-      }, 480);
+      }, 900);
     },
     [answerStr.length, roundIdx, rounds.length, onFinish, resetRoundState]
   );
@@ -1223,6 +1225,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       if (next.length === answerStr.length) {
         setRightPulse(true); // strobe every number key green on a completed answer
         setTimeout(() => setRightPulse(false), 320);
+        if (comboMult > 1) setComboMultDisplay(comboMult);
         if (settings.timeLimit > 0) {
           const bonus = Math.round(timeLeft * 200 / (settings.timeLimit * settings.timeLimit) * comboMult);
           if (bonus > 0) {
@@ -1339,7 +1342,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
       <div className="reveal-row">
         <div className="bonus-col">
-          {comboMult > 1 && <div key={"c" + perfectStreak} className="combo-mult">×{comboMult}</div>}
+          {comboMultDisplay && <div key={"c" + roundIdx} className="combo-mult">×{comboMultDisplay}</div>}
         </div>
         <div className="slots">{slots}</div>
         <div className="bonus-col">

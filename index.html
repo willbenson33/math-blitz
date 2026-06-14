@@ -1408,11 +1408,15 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
       <div className="reveal-row">
         <div className="bonus-col">
+          {/* Scoring bonus popups disabled for now — may bring back later.
           {roundBonus && roundBonus.combo && <div key={"b" + roundIdx} className="combo-mult">×{roundBonus.combo}</div>}
+          */}
         </div>
         <div className="slots">{slots}</div>
         <div className="bonus-col">
+          {/* Scoring bonus popups disabled for now — may bring back later.
           {roundBonus && roundBonus.time && <div key={"b" + roundIdx} className="time-bonus">+{roundBonus.time}⚡</div>}
+          */}
         </div>
       </div>
 

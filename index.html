@@ -152,42 +152,6 @@
     box-shadow: 0 6px 16px rgba(91,140,255,0.35);
   }
 
-  .toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 14px;
-    border-radius: 12px;
-    background: var(--panel-2);
-    border: 1px solid rgba(255,255,255,0.06);
-    margin-bottom: 10px;
-  }
-  .toggle-row:last-child { margin-bottom: 0; }
-  .toggle-row .tlabel { font-weight: 700; font-size: 15px; }
-  .toggle-row .thint { font-size: 12px; color: var(--muted); margin-top: 2px; }
-
-  .switch {
-    position: relative;
-    width: 52px; height: 30px;
-    border-radius: 999px;
-    background: #38415a;
-    border: none;
-    cursor: pointer;
-    transition: background .18s ease;
-    flex: 0 0 auto;
-  }
-  .switch::after {
-    content: "";
-    position: absolute;
-    top: 3px; left: 3px;
-    width: 24px; height: 24px;
-    border-radius: 50%;
-    background: #fff;
-    transition: transform .18s ease;
-  }
-  .switch.on { background: var(--green); }
-  .switch.on::after { transform: translateX(22px); }
-
   input[type="text"], input[type="number"] {
     width: 100%;
     padding: 13px 14px;
@@ -301,6 +265,22 @@
     15%  { opacity:1; }
     75%  { opacity:1; transform:translateY(-10px); }
     100% { opacity:0; transform:translateY(-14px); }
+  }
+
+  .combo-mult {
+    position: absolute;
+    top: -6px; right: -10px;
+    font-size: 14px;
+    font-weight: 900;
+    color: var(--amber);
+    text-shadow: 0 0 8px rgba(255,140,46,0.6);
+    pointer-events: none;
+    animation: comboPop .35s ease;
+  }
+  @keyframes comboPop {
+    0%   { transform:scale(0.5); opacity:0; }
+    55%  { transform:scale(1.3); opacity:1; }
+    100% { transform:scale(1); opacity:1; }
   }
 
   .fire-bar {
@@ -983,7 +963,7 @@ const basePoints = (pos) => (pos + 1) * 5;
 /* ============================================================
    Home Screen
    ============================================================ */
-function HomeScreen({ onStartMode, lastMode, hardMode, onToggleHardMode, theme, onToggleTheme }) {
+function HomeScreen({ onStartMode, lastMode, theme, onToggleTheme }) {
   const [selectedId, setSelectedId] = useState(
     () => (GAME_MODES.some((m) => m.id === lastMode) ? lastMode : GAME_MODES[0].id)
   );
@@ -1059,14 +1039,6 @@ function HomeScreen({ onStartMode, lastMode, hardMode, onToggleHardMode, theme, 
           Start →
         </button>
       </div>
-
-      <div className="toggle-row" style={{ background: "var(--panel)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "var(--radius)", padding: "14px 18px" }}>
-        <div>
-          <div className="tlabel">🔥 Hard Mode</div>
-          <div className="thint">Hide the answer blanks — no digit hints</div>
-        </div>
-        <button className={"switch" + (hardMode ? " on" : "")} onClick={onToggleHardMode} aria-pressed={hardMode} aria-label="Hard Mode" />
-      </div>
     </div>
     </div>
   );
@@ -1112,6 +1084,10 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const dotIndex = rawAnswerStr.indexOf(".");
   const answerStr = dotIndex === -1 ? rawAnswerStr : rawAnswerStr.replace(".", "");
   const pos = locked.length;
+
+  // Combo multiplier: scales every point earned by the current perfect-round
+  // streak. Strict — any wrong tap resets perfectStreak (and thus this) to x1.
+  const comboMult = Math.min(1 + 0.5 * perfectStreak, 5);
 
   const resetRoundState = useCallback(() => {
     retriedPos.current = new Set();
@@ -1211,7 +1187,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       const firstTry = !retriedPos.current.has(pos);
       if (!scoredPos.current.has(pos)) {
         scoredPos.current.add(pos);
-        const worth = firstTry ? basePoints(pos) : Math.round(basePoints(pos) / 5);
+        const base = firstTry ? basePoints(pos) : Math.round(basePoints(pos) / 5);
+        const worth = Math.round(base * comboMult);
         setScore((s) => s + worth);
         setScorePop(true);
         setTimeout(() => setScorePop(false), 250);
@@ -1226,7 +1203,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         setRightPulse(true); // strobe every number key green on a completed answer
         setTimeout(() => setRightPulse(false), 320);
         if (settings.timeLimit > 0) {
-          const bonus = Math.round(timeLeft * 200 / (settings.timeLimit * settings.timeLimit));
+          const bonus = Math.round(timeLeft * 200 / (settings.timeLimit * settings.timeLimit) * comboMult);
           if (bonus > 0) {
             setScore((s) => s + bonus);
             setTimeBonusDisplay(bonus);
@@ -1263,8 +1240,8 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
 
   // render answer slots
   const slots = [];
-  // Hard mode hides the unfilled blanks so the answer's digit count stays secret.
-  const hideBlanks = settings.hardMode && !revealAnswer;
+  // Hide the unfilled blanks so the answer's digit count stays secret.
+  const hideBlanks = !revealAnswer;
   for (let i = 0; i < answerStr.length; i++) {
     // show the decimal point in its fixed position between digit slots
     if (i === dotIndex && (!hideBlanks || i < locked.length)) {
@@ -1306,6 +1283,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         <div className="stat">
           <div className="k">Score</div>
           <div className={"v" + (scorePop ? " score-pop" : "")}>{score}</div>
+          {comboMult > 1 && <div key={perfectStreak} className="combo-mult">×{comboMult}</div>}
           {timeBonusDisplay && <div key={timeBonusDisplay + roundIdx} className="time-bonus">+{timeBonusDisplay}⚡</div>}
         </div>
         <div className="stat">
@@ -1504,9 +1482,6 @@ function App() {
   // screen: "home" | "game" | "summary"
   const [screen, setScreen] = useState("home");
   const [seed, setSeed] = useState("");
-  const [hardMode, setHardMode] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("math-blitz-hard")) ?? false; } catch { return false; }
-  });
   const [playSettings, setPlaySettings] = useState(DEFAULT_SETTINGS);
   const [rounds, setRounds] = useState([]);
   const [result, setResult] = useState(null);
@@ -1542,18 +1517,10 @@ function App() {
     setScreen("game");
   };
 
-  const toggleHardMode = () => {
-    setHardMode((v) => {
-      const next = !v;
-      try { localStorage.setItem("math-blitz-hard", JSON.stringify(next)); } catch {}
-      return next;
-    });
-  };
-
   const startMode = (mode, seedOverride = null) => {
     setLastMode(mode.id);
     try { localStorage.setItem("math-blitz-mode", mode.id); } catch {}
-    launch(seedOverride ?? randomSeed(), { ...mode.settings, hardMode });
+    launch(seedOverride ?? randomSeed(), mode.settings);
   };
 
   const playAgain = () => {
@@ -1617,8 +1584,6 @@ function App() {
     <HomeScreen
       onStartMode={startMode}
       lastMode={lastMode}
-      hardMode={hardMode}
-      onToggleHardMode={toggleHardMode}
       theme={theme}
       onToggleTheme={toggleTheme}
     />

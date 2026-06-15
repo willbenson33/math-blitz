@@ -1392,12 +1392,12 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         </div>
         <div className="stat" style={{ textAlign: "right" }}>
           <div className="k">Score</div>
-          <div className={"v" + (scorePop ? " score-pop" : "")}>{score}</div>
+          {!paused && <div className={"v" + (scorePop ? " score-pop" : "")}>{score}</div>}
         </div>
       </div>
 
       <div className="streak-bar">
-        {wrongCount > 0 ? (
+        {paused ? null : wrongCount > 0 ? (
           <div className="strike-dots" aria-label={`${wrongCount} of 3 strikes`}>
             {[0, 1, 2].map((i) => (
               <span key={i} className={"sdot" + (i < wrongCount ? " filled" : "")} />

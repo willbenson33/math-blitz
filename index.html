@@ -103,15 +103,7 @@
     background-clip: text;
     color: transparent;
   }
-  .subtitle {
-    text-align: center;
-    color: var(--muted);
-    margin-top: 6px;
-    margin-bottom: 22px;
-    font-size: 14px;
-  }
-
-  /* ---------- Settings ---------- */
+  /* ---------- Panels ---------- */
   .panel {
     background: linear-gradient(180deg, var(--panel), var(--bg-2));
     border: 1px solid rgba(255,255,255,0.06);
@@ -120,8 +112,6 @@
     margin-bottom: 14px;
     box-shadow: var(--shadow);
   }
-  .field { margin-bottom: 18px; }
-  .field:last-child { margin-bottom: 0; }
   .label {
     display: block;
     font-size: 13px;
@@ -132,32 +122,7 @@
     margin-bottom: 10px;
   }
 
-  .seg {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  .seg button, .chip {
-    flex: 1 1 0;
-    min-width: 64px;
-    padding: 12px 10px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: var(--panel-2);
-    color: var(--text);
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform .08s ease, background .15s ease, border-color .15s ease;
-  }
-  .seg button:active, .chip:active { transform: scale(0.96); }
-  .seg button.on, .chip.on {
-    background: linear-gradient(180deg, var(--accent), #3f6fe0);
-    border-color: var(--accent-2);
-    box-shadow: 0 6px 16px rgba(91,140,255,0.35);
-  }
-
-  input[type="text"], input[type="number"] {
+  input[type="text"] {
     width: 100%;
     padding: 13px 14px;
     border-radius: 12px;
@@ -200,30 +165,6 @@
     box-shadow: 0 0 10px var(--red-glow);
     animation: pop .25s ease;
   }
-
-  .mode-select {
-    width: 100%;
-    padding: 13px 40px 13px 14px;
-    border-radius: 12px;
-    background: var(--panel-2);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: var(--text);
-    font-size: 16px;
-    font-weight: 700;
-    outline: none;
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238c97b3' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    transition: border-color .15s ease;
-  }
-  .mode-select:focus { border-color: var(--accent); }
-  .mode-select option { background: var(--panel); color: var(--text); }
-
-  .row2 { display: flex; gap: 12px; }
-  .row2 > .field { flex: 1; margin-bottom: 0; }
 
   .start-btn {
     width: 100%;
@@ -523,26 +464,6 @@
     font-size: 13px;
   }
   .mini-btn:active { transform: scale(0.96); }
-
-  .footer-note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
-
-  .settings-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 14px 18px;
-    margin-top: 8px;
-    border-radius: var(--radius);
-    background: var(--panel);
-    border: 1px solid rgba(255,255,255,0.08);
-    color: var(--text);
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background .15s ease;
-  }
-  .settings-toggle:active { background: var(--panel-2); }
 
   .back-btn {
     width: 40px; height: 40px;

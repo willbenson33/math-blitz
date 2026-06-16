@@ -1,6 +1,6 @@
 # Math Blitz
 
-Single-file web app: the entire game lives in `index.html` (React via CDN + Babel standalone, all styles in one `<style>` block). There is no build step — open `index.html` in a browser to run it.
+Single-file web app: the entire game lives in `index.html` (React + Babel standalone, vendored under `vendor/`, all styles in one `<style>` block). There is no build step — open `index.html` in a browser to run it.
 
 ## Workflow
 

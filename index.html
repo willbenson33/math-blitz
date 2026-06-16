@@ -920,6 +920,17 @@ const GAME_MODES = [
     }),
   },
   {
+    id: "wills-challenge",
+    emoji: "🏆",
+    name: "Wills Challenge",
+    tagline: "Classic division & 11–20 times tables",
+    settings: modeSettings({
+      operations: { division: true, multiplication: true, addition: false, subtraction: false },
+      factorAMin: 11, factorAMax: 20,
+      factorBMin: 2, factorBMax: 20,
+    }),
+  },
+  {
     id: "full-mix",
     emoji: "🔀",
     name: "Full Mix",

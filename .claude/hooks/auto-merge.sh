@@ -33,9 +33,15 @@ if [ "$changed" = "0" ] && [ "$ahead" = "0" ]; then
   exit 0
 fi
 
-# 2. "Confirm it works": lightweight gate for this static site.
-#    A real build/test step would go here for a non-static project.
-if ! grep -q "</html>" index.html 2>/dev/null; then
+# 2. "Confirm it works": pre-compile the JSX so a broken source can't reach
+#    master (and break the Pages deploy). Falls back to a basic sanity check
+#    when Node isn't available.
+if command -v node >/dev/null 2>&1; then
+  if ! node build.mjs >/dev/null 2>&1; then
+    printf '{"systemMessage":"Auto-merge hook: build (node build.mjs) failed — committed but did NOT merge to master."}'
+    exit 0
+  fi
+elif ! grep -q "</html>" index.html 2>/dev/null; then
   printf '{"systemMessage":"Auto-merge hook: index.html sanity check failed — committed but did NOT merge to master."}'
   exit 0
 fi

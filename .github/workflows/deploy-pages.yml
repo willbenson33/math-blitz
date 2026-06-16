@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - claude/division-math-game-6D7tl
   workflow_dispatch:
 
 # Allow the workflow to publish to Pages
@@ -28,17 +27,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Pre-compile the JSX into dist/ so the live site ships no in-browser
+      # Babel. Uses only the vendored Babel — no npm install needed.
+      - name: Build
+        run: node build.mjs
+
       # Enables Pages automatically if it isn't already turned on
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
           enablement: true
 
-      # The whole repo root is the site (index.html lives at the root)
+      # Publish the pre-built site (compiled index.html + React runtime)
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: ./dist
 
       - name: Deploy to GitHub Pages
         id: deployment

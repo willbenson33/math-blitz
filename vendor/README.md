@@ -3,8 +3,12 @@
 Local copies of the runtime dependencies, so the app renders without reaching
 an external CDN (some preview/sandboxed environments block `unpkg.com`).
 
-`index.html` loads these via relative paths instead of a CDN. No build step —
-opening `index.html` still just works.
+`index.html` loads these via relative paths instead of a CDN, so opening it
+directly still just works (Babel transpiles the inline JSX in the browser).
+
+For deployment, `build.mjs` reuses this same `babel.min.js` from Node to
+pre-compile the JSX into `dist/`, which ships only the two React files — Babel
+is excluded from the built site.
 
 | File | Package | Version | Source |
 |------|---------|---------|--------|

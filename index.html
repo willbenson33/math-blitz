@@ -857,6 +857,17 @@ const GAME_MODES = [
     settings: modeSettings({}),
   },
   {
+    id: "no-timer",
+    emoji: "🧘",
+    name: "No Timer",
+    tagline: "Untimed — ranked by accuracy",
+    settings: modeSettings({
+      operations: { division: true, multiplication: false, addition: false, subtraction: false },
+      timeLimit: 0,
+      scoreboard: "accuracy",
+    }),
+  },
+  {
     id: "div-2-3-digit",
     emoji: "🔟",
     name: "2-3 Digit Division",
@@ -965,9 +976,22 @@ function loadHighScores(modeId) {
   catch { return []; }
 }
 
-function insertHighScore(record, existing, modeId) {
+// How a mode's scoreboard ranks runs. "points" (default) is the original
+// time-flavored score; "accuracy" ranks by first-try accuracy, breaking ties
+// on fewest wrong taps (and then the earlier run) — never on time.
+function scoreCompare(scoreboard) {
+  if (scoreboard === "accuracy") {
+    return (a, b) =>
+      (b.accuracy - a.accuracy) ||
+      ((a.wrongTaps ?? 0) - (b.wrongTaps ?? 0)) ||
+      (a.ts - b.ts);
+  }
+  return (a, b) => b.score - a.score;
+}
+
+function insertHighScore(record, existing, modeId, scoreboard) {
   const updated = [...existing, record]
-    .sort((a, b) => b.score - a.score)
+    .sort(scoreCompare(scoreboard))
     .slice(0, MAX_STORED);
   try { localStorage.setItem(scoresKey(modeId), JSON.stringify(updated)); } catch {}
   return updated;
@@ -1093,7 +1117,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const pendingAdvance = useRef(false); // reveal timer fired while paused/held — advance on resume/release
 
   // aggregate stats across the whole run
-  const stats = useRef({ firstTryDigits: 0, totalDigits: 0, perfectRounds: 0 });
+  const stats = useRef({ firstTryDigits: 0, totalDigits: 0, perfectRounds: 0, wrongTaps: 0 });
 
   // wall-clock timing for the whole run (paused time is subtracted out)
   const timing = useRef({ start: Date.now(), pausedAt: null, pausedTotal: 0 });
@@ -1156,6 +1180,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
             firstTryDigits: stats.current.firstTryDigits,
             totalDigits: stats.current.totalDigits,
             perfectRounds: stats.current.perfectRounds,
+            wrongTaps: stats.current.wrongTaps,
             totalTime: elapsedMs,
           });
         } else {
@@ -1276,6 +1301,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
       roundPerfect.current = false;
       setPerfectStreak(0); // break the fire streak the moment a guess is wrong
       roundErrors.current += 1;
+      stats.current.wrongTaps += 1;
       setWrongCount(roundErrors.current);
       flashKey(d, "red");
       setWrongPulse(true); // strobe every number key red, then let it fade out
@@ -1423,20 +1449,22 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
               <button key={k} className={cls} onClick={() => handleDigit(k)}>{k}</button>
             );
           })}
-          <button
-            className="key wide action"
-            style={{ gridColumn: 1, ...(timeRefreshUsed ? { opacity: 0.4, color: "var(--muted)", cursor: "default" } : {}) }}
-            disabled={timeRefreshUsed}
-            aria-label="Refresh time (one use per game)"
-            onClick={() => {
-              if (timeRefreshUsed) return;
-              if (advancing.current || revealing.current || paused) return;
-              setTimeRefreshUsed(true);
-              if (settings.timeLimit) setTimeLeft(settings.timeLimit);
-            }}
-          >
-            ⏰<span style={{ color: "var(--green)" }}>+</span>
-          </button>
+          {settings.timeLimit > 0 && (
+            <button
+              className="key wide action"
+              style={{ gridColumn: 1, ...(timeRefreshUsed ? { opacity: 0.4, color: "var(--muted)", cursor: "default" } : {}) }}
+              disabled={timeRefreshUsed}
+              aria-label="Refresh time (one use per game)"
+              onClick={() => {
+                if (timeRefreshUsed) return;
+                if (advancing.current || revealing.current || paused) return;
+                setTimeRefreshUsed(true);
+                if (settings.timeLimit) setTimeLeft(settings.timeLimit);
+              }}
+            >
+              ⏰<span style={{ color: "var(--green)" }}>+</span>
+            </button>
+          )}
           <button
             className={"key" + (rightPulse ? " flash-green-soft" : wrongPulse ? " flash-red-soft" : keyFlash && keyFlash.digit === "0" ? (keyFlash.kind === "green" ? " flash-green" : " flash-red") : "")}
             style={{ gridColumn: 2 }}
@@ -1463,8 +1491,11 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
     try { navigator.clipboard.writeText(seed); } catch (e) {}
   };
 
+  const isAccuracy = (settings.scoreboard || "points") === "accuracy";
   const top5 = (highScores || []).slice(0, 5);
-  const isNewBest = prevBest === null || result.score > prevBest;
+  // The current run ranks #1 in its mode's board exactly when it sits at the top
+  // of the freshly re-sorted list — works for both the points and accuracy boards.
+  const isNewBest = top5.length > 0 ? top5[0].ts === currentTs : true;
   const activeMode = GAME_MODES.find((m) => m.id === lastMode);
 
   return (
@@ -1473,8 +1504,8 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
 
       <div className="panel" style={{ padding: 14, marginBottom: 12 }}>
         <div className="scard" style={{ background: "transparent", border: "none", padding: 0 }}>
-          <div className="k">Total Score</div>
-          <div className="big-score">{result.score}</div>
+          <div className="k">{isAccuracy ? "Accuracy" : "Total Score"}</div>
+          <div className="big-score">{isAccuracy ? accuracy + "%" : result.score}</div>
         </div>
         <div className="grid2">
           <div className="scard">
@@ -1482,8 +1513,8 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
             <div className="v">{settings.rounds}</div>
           </div>
           <div className="scard">
-            <div className="k">Accuracy</div>
-            <div className="v">{accuracy}%</div>
+            <div className="k">{isAccuracy ? "Wrong Taps" : "Accuracy"}</div>
+            <div className="v">{isAccuracy ? (result.wrongTaps ?? 0) : accuracy + "%"}</div>
           </div>
           <div className="scard">
             <div className="k">Perfect Rounds</div>
@@ -1493,7 +1524,7 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
             <div className="k">Digits Nailed</div>
             <div className="v">{result.firstTryDigits}/{result.totalDigits}</div>
           </div>
-          {result.totalTime != null && (
+          {!isAccuracy && result.totalTime != null && (
             <div className="scard">
               <div className="k">Total Time</div>
               <div className="v">{formatDuration(result.totalTime)}</div>
@@ -1510,7 +1541,15 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
 
       {isNewBest ? (
         <div className="score-banner best">
-          🏆 {prevBest === null ? "First run — you're on the board!" : "New personal best!"}
+          🏆 {prevBest === null
+            ? "First run — you're on the board!"
+            : (isAccuracy ? "New best accuracy!" : "New personal best!")}
+        </div>
+      ) : isAccuracy ? (
+        <div className="score-banner miss">
+          {prevBest > accuracy
+            ? <>▼ {prevBest - accuracy}% from your best ({prevBest}%)</>
+            : <>Matched your best accuracy ({prevBest}%)</>}
         </div>
       ) : (
         <div className="score-banner miss">
@@ -1520,23 +1559,27 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
 
       {top5.length > 0 && (
         <div className="panel" style={{ padding: "12px 12px 8px", marginBottom: 16 }}>
-          <span className="label" style={{ display: "block", marginBottom: 8 }}>Top Scores</span>
+          <span className="label" style={{ display: "block", marginBottom: 8 }}>{isAccuracy ? "Top Runs" : "Top Scores"}</span>
           {top5.map((entry, i) => (
             <div key={entry.ts} className={"lb-row" + (entry.ts === currentTs ? " lb-current" : "")}>
               <div className="lb-rank">{i + 1}</div>
               <div className="lb-main">
                 <div className="lb-score-line">
-                  <span className="lb-score">{entry.score}</span>
+                  <span className="lb-score">{isAccuracy ? entry.accuracy + "%" : entry.score}</span>
                 </div>
                 <div className="lb-stats">
-                  {entry.accuracy}% acc
+                  {isAccuracy ? (
+                    <>{entry.wrongTaps ?? 0} wrong</>
+                  ) : (
+                    <>{entry.accuracy}% acc</>
+                  )}
                   {entry.perfectRounds != null && (
                     <> · {entry.perfectRounds}/{entry.rounds} perfect</>
                   )}
                   {entry.totalDigits != null && (
                     <> · {entry.firstTryDigits}/{entry.totalDigits} digits</>
                   )}
-                  {entry.totalTime != null && (
+                  {!isAccuracy && entry.totalTime != null && (
                     <> · {formatDuration(entry.totalTime)}</>
                   )}
                   {" · "}{entry.date}
@@ -1613,8 +1656,12 @@ function App() {
 
   const finishGame = (res) => {
     if (res === null) { setScreen("home"); return; }
+    const scoreboard = playSettings.scoreboard || "points";
     const existing = loadHighScores(lastMode);
-    const best = existing.length > 0 ? existing[0].score : null;
+    // existing is stored already ranked by this mode's metric, so [0] is the best.
+    const best = existing.length > 0
+      ? (scoreboard === "accuracy" ? existing[0].accuracy : existing[0].score)
+      : null;
     const ts = Date.now();
     const acc = res.totalDigits > 0 ? Math.round((res.firstTryDigits / res.totalDigits) * 100) : 0;
     const record = {
@@ -1624,12 +1671,13 @@ function App() {
       rounds: playSettings.rounds,
       firstTryDigits: res.firstTryDigits,
       totalDigits: res.totalDigits,
+      wrongTaps: res.wrongTaps,
       totalTime: res.totalTime,
       seed,
       date: new Date().toLocaleDateString(),
       ts,
     };
-    const updated = insertHighScore(record, existing, lastMode);
+    const updated = insertHighScore(record, existing, lastMode, scoreboard);
     setHighScores(updated);
     setPrevBest(best);
     setCurrentTs(ts);

@@ -932,9 +932,18 @@ const GAME_MODES = [
 
 /* ============================================================
    High-score persistence  (scoped per game mode)
-   Each record: { score, accuracy, perfectRounds, rounds, seed, date, ts }
+   Each record: { score, accuracy, perfectRounds, rounds, seed, date, ts, totalTime }
    ============================================================ */
 const MAX_STORED = 20;
+
+// Format an elapsed time in ms as M:SS (e.g. 92000 -> "1:32").
+function formatDuration(ms) {
+  if (ms == null) return "—";
+  const totalSec = Math.round(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return m + ":" + String(s).padStart(2, "0");
+}
 
 function scoresKey(modeId) {
   return "math-blitz-scores-" + (modeId || "default");
@@ -1075,6 +1084,9 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   // aggregate stats across the whole run
   const stats = useRef({ firstTryDigits: 0, totalDigits: 0, perfectRounds: 0 });
 
+  // wall-clock timing for the whole run (paused time is subtracted out)
+  const timing = useRef({ start: Date.now(), pausedAt: null, pausedTotal: 0 });
+
   const problem = rounds[roundIdx];
   // Decimal answers are typed as plain digits; the decimal point is shown
   // positionally between the slots rather than entered on the numpad.
@@ -1122,6 +1134,10 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
         setPerfectStreak(0);
       }
 
+      // capture the run duration at the moment the final round completes,
+      // excluding any paused stretches
+      const elapsedMs = Date.now() - timing.current.start - timing.current.pausedTotal;
+
       setTimeout(() => {
         if (roundIdx + 1 >= rounds.length) {
           onFinish({
@@ -1129,6 +1145,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
             firstTryDigits: stats.current.firstTryDigits,
             totalDigits: stats.current.totalDigits,
             perfectRounds: stats.current.perfectRounds,
+            totalTime: elapsedMs,
           });
         } else {
           setRoundIdx((i) => i + 1);
@@ -1164,8 +1181,17 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
   const scoreRef = useRef(0);
   useEffect(() => { scoreRef.current = score; }, [score]);
 
-  // keep a ref of paused state so reveal timers can see the latest value
-  useEffect(() => { pausedRef.current = paused; }, [paused]);
+  // keep a ref of paused state so reveal timers can see the latest value,
+  // and accumulate paused time so it doesn't count toward the run total
+  useEffect(() => {
+    pausedRef.current = paused;
+    if (paused) {
+      timing.current.pausedAt = Date.now();
+    } else if (timing.current.pausedAt != null) {
+      timing.current.pausedTotal += Date.now() - timing.current.pausedAt;
+      timing.current.pausedAt = null;
+    }
+  }, [paused]);
 
   // timer
   useEffect(() => {
@@ -1456,6 +1482,12 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
             <div className="k">Digits Nailed</div>
             <div className="v">{result.firstTryDigits}/{result.totalDigits}</div>
           </div>
+          {result.totalTime != null && (
+            <div className="scard">
+              <div className="k">Total Time</div>
+              <div className="v">{formatDuration(result.totalTime)}</div>
+            </div>
+          )}
         </div>
 
         <div className="seed-line">
@@ -1492,6 +1524,9 @@ function SummaryScreen({ seed, settings, result, highScores, prevBest, currentTs
                   )}
                   {entry.totalDigits != null && (
                     <> · {entry.firstTryDigits}/{entry.totalDigits} digits</>
+                  )}
+                  {entry.totalTime != null && (
+                    <> · {formatDuration(entry.totalTime)}</>
                   )}
                   {" · "}{entry.date}
                 </div>
@@ -1578,6 +1613,7 @@ function App() {
       rounds: playSettings.rounds,
       firstTryDigits: res.firstTryDigits,
       totalDigits: res.totalDigits,
+      totalTime: res.totalTime,
       seed,
       date: new Date().toLocaleDateString(),
       ts,

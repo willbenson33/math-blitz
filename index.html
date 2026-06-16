@@ -1472,7 +1472,7 @@ function GameScreen({ seed, settings, rounds, onFinish }) {
           >
             0
           </button>
-          <button className="key wide action" style={{ gridColumn: 3, ...(revealAnswer ? { pointerEvents: "auto", opacity: 1 } : {}) }} onClick={() => { roundPerfect.current = false; setPaused(true); }}>⏸</button>
+          <button className="key wide action" style={{ gridColumn: 3, ...(revealAnswer ? { pointerEvents: "auto", opacity: 1, zIndex: 60 } : {}) }} onClick={() => { roundPerfect.current = false; setPaused(true); }}>⏸</button>
         </div>
       )}
     </div>

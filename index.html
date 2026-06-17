@@ -687,14 +687,15 @@ function generateDivision(rng, s) {
 function generateTips(rng, s) {
   // Restaurant-tip estimator: a check from $10.99 to $999.99 times a common
   // gratuity rate (10/15/20/25/30%), with the answer rounded to the nearest
-  // cent. Operands are tracked as integer cents/percent so arithmetic is exact.
+  // whole dollar. Operands are tracked as integer cents/percent so arithmetic
+  // is exact.
   const rates = [10, 15, 20, 25, 30];
   for (let i = 0; i < 6000; i++) {
     const checkCents = randInt(rng, 1099, 99999);   // 10.99 .. 999.99
     const ratePct = rates[Math.floor(rng() * rates.length)];
     const left = checkCents / 100;
     const right = ratePct / 100;
-    const answer = Math.round((checkCents * ratePct) / 100) / 100; // tip to the cent
+    const answer = Math.round((checkCents * ratePct) / 10000); // tip to nearest dollar
     if (answer < 1) continue;
     return { left, opSymbol: "×", right, answer };
   }
@@ -904,7 +905,7 @@ const GAME_MODES = [
     id: "tips",
     emoji: "💵",
     name: "Tips",
-    tagline: "Gratuity on a restaurant check",
+    tagline: "Gratuity, to the nearest dollar",
     settings: modeSettings({
       operations: { division: false, multiplication: true, addition: false, subtraction: false },
       tips: true,
